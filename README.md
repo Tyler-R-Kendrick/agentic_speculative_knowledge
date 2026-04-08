@@ -2,25 +2,14 @@
 
 This repo implements an agentic memory system for knowledge and discovery.
 
-- **filesystem active memory** for mutable working cognition
-- **TerminusDB temporal graph storage** for canonical persistent memory
-- **knowledge facet generation** for speculative inference
-- **a manifold ranking sidecar** for geometric scoring of inference candidates and knowledge facets
+- **filesystem active memory** for mutable working cognition as a MEMORY.md and jsonl "journal".
+- **TerminusDB temporal graph storage** for canonical persistent memory with time-travel and temporal reasoning.
+- **knowledge facet generation** for speculative inference from the existing knowledge graph of memories.
+- **a manifold ranking sidecar** for geometric scoring of inference candidates and knowledge facets to inform steering and discovery.
 
 ## Core architectural approach
 
-### 1. Active memory stays in the filesystem
-
-Active memory is the mutable workspace for:
-
-- current session state
-- goals and subgoals
-- open questions
-- working notes
-- task cards
-- entity cards
-- checkpoints
-- journaled working-memory events
+### 1. Active memory stays in the filesystem and is used to augment current context with fast lookup and RAG.
 
 This layer is intentionally:
 
@@ -31,7 +20,7 @@ This layer is intentionally:
 
 ### 2. Persistent memory lives in temporal graphs
 
-TerminusDB is the canonical store for trusted long-term knowledge and branch-local speculative knowledge.
+TerminusDB is the canonical store for trusted long-term knowledge and branch-local speculative knowledge. Importantly, it models diffs over time for historical queries. This is used for longer-term recall and advanced RAG scenarios.
 
 The graph stores explicit structures such as:
 
@@ -47,8 +36,6 @@ The graph stores explicit structures such as:
 - temporal scope
 - validation state
 - branch lineage
-
-The graph is authoritative for what exists, what was observed, what was inferred, what was verified, and what remains speculative.
 
 ### 3. Runtime inference is isolated in separate inference meta-graphs
 
@@ -181,4 +168,3 @@ This project is aimed at building an agent memory stack where:
 - inference meta-graphs support runtime knowledge discovery
 - manifold geometry improves discovery quality without collapsing trust boundaries
 
-That combination is the central approach of `agent_memory`.
