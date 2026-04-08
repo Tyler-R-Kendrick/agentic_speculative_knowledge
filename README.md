@@ -1,2 +1,194 @@
 # agent_memory
-An implementation of state-of-the-art techniques for modeling dynamic working and persistent memory for AI agents.
+
+`agent_memory` is a graph-first memory system for AI agents that separates mutable working memory from durable long-term memory and runtime inference.
+
+## Problem the project is solving
+
+Agent systems need memory that supports two conflicting requirements at the same time:
+
+- **fast, editable working state** for the current session
+- **durable, auditable long-term knowledge** with provenance, temporality, and trust boundaries
+
+Traditional single-store approaches tend to blur those concerns. Pure file storage is easy to inspect and diff, but weak for structured long-term knowledge. Pure vector-first systems are useful for similarity search, but they are not a sufficient source of truth for explicit claims, temporal facts, validation state, or branch-aware provenance.
+
+This project solves that by combining:
+
+- **filesystem active memory** for mutable working cognition
+- **TerminusDB temporal graph storage** for canonical persistent and speculative knowledge
+- **a manifold ranking sidecar** for geometric scoring of inference candidates and knowledge facets
+
+## Core architectural approach
+
+### 1. Active memory stays in the filesystem
+
+Active memory is the mutable workspace for:
+
+- current session state
+- goals and subgoals
+- open questions
+- working notes
+- task cards
+- entity cards
+- checkpoints
+- journaled working-memory events
+
+This layer is intentionally:
+
+- human-readable
+- Git-diffable
+- fast to update
+- easy to recover from files and history
+
+### 2. Persistent memory lives in temporal graphs
+
+TerminusDB is the canonical store for trusted long-term knowledge and branch-local speculative knowledge.
+
+The graph stores explicit structures such as:
+
+- claims
+- memories
+- sessions
+- tasks
+- observations
+- working-memory events and snapshots
+- inference nodes
+- facet relations
+- provenance metadata
+- temporal scope
+- validation state
+- branch lineage
+
+The graph is authoritative for what exists, what was observed, what was inferred, what was verified, and what remains speculative.
+
+### 3. Runtime inference is isolated in separate inference meta-graphs
+
+Runtime-derived knowledge is not written directly into trusted memory.
+
+Instead, this system uses branch-local speculative graph layers such as:
+
+- `session/<session-id>` for candidate memory
+- `inference/<session-id>` for speculative inference nodes and ranked facet relations
+- `verification/<run-id>` for proof, checking, and validation artifacts
+- `reflection/<task-id>` for consolidation outputs
+
+This keeps trusted memory separate from runtime exploration and preserves clear trust boundaries between:
+
+- **trusted**
+- **candidate**
+- **speculative**
+
+### 4. Knowledge facets are modeled as relations
+
+The system models facets as qualified relations between knowledge nodes rather than as standalone concept nodes.
+
+That allows the graph to represent things like:
+
+- paraphrases
+- abstractions
+- reframings
+- decompositions
+- scope differences
+- timeframe differences
+
+Each facet relation can carry ranking and uncertainty metadata without replacing explicit graph semantics.
+
+### 5. Manifolds model rich geometric inference space
+
+The manifold sidecar is used to score and rank candidates in a richer geometric space than the graph alone provides.
+
+It improves:
+
+- inference candidate ranking
+- facet strength estimation
+- bridge discovery between sparse subgraphs
+- neighborhood expansion
+- latent relatedness scoring
+
+It does **not** replace the graph and it is **not** the source of truth.
+
+Its outputs are advisory metadata such as:
+
+- ranking score
+- relatedness score
+- distance score
+- uncertainty
+- geometry version
+- ranking model id
+- ranking run id
+
+Those outputs are written back into TerminusDB so ranking decisions remain auditable.
+
+## Why this is not a vector-database-first system
+
+Vector infrastructure can be useful, but it is not the canonical knowledge layer here.
+
+If a vector-serving layer such as **Qdrant** is used, it should be treated as:
+
+- an auxiliary retrieval or embedding cache
+- a serving layer for learned ranking representations
+- a reusable store for neighborhood embeddings or candidate encodings
+
+It should **not** become:
+
+- the only store for claims or inferences
+- the source of truth for trusted memory
+- the only place provenance or validation state exists
+
+In this architecture:
+
+- **TerminusDB remains canonical**
+- **vector infrastructure is optional and supporting**
+- **manifold ranking remains advisory**
+
+## Verification and formal reasoning layers
+
+The architecture also leaves room for explicit verification layers.
+
+Verification artifacts should live in graph-aware flows and branches such as `verification/<run-id>`, where the system can track:
+
+- verifier identity
+- verification run id
+- proof attempts
+- contradiction checks
+- validation outcomes
+- promotion decisions
+
+Where useful, graph content can be mapped into more formal verification systems such as:
+
+- rule engines
+- symbolic validators
+- logic programming systems
+- SMT or theorem-proving workflows
+
+Those formal solvers should validate or refute candidates; they should not replace the graph as the durable memory record.
+
+## Current implementation direction
+
+The repository currently implements the core shape of this architecture:
+
+- filesystem-backed active memory
+- Terminus-oriented schema and branch management
+- `InferenceNode` as the single speculative proposition type
+- facet relations with ranking metadata
+- a formalized manifold ranking service API
+- branch-aware speculative persistence
+- retrieval that suppresses speculative results by default
+
+## Design principles
+
+- **Graph-first:** graph semantics, provenance, temporality, and validation state are authoritative.
+- **Filesystem-first for working state:** active memory remains easy to inspect and edit.
+- **Inference is separate from truth:** speculative runtime knowledge is isolated from validated memory.
+- **Ranking is advisory:** manifold geometry influences prioritization, not truth status.
+- **Auditability matters:** every inference and ranking signal should be traceable to its source and run metadata.
+
+## Repository focus
+
+This project is aimed at building an agent memory stack where:
+
+- active memory supports immediate cognition
+- persistent memory is explicit and temporal
+- inference meta-graphs support runtime knowledge discovery
+- manifold geometry improves discovery quality without collapsing trust boundaries
+
+That combination is the central approach of `agent_memory`.
