@@ -19,23 +19,25 @@ from src.inference.models import FacetRelation, InferenceNode
 
 
 class TestTerminusAdapter:
+    UNAVAILABLE_URL = "http://localhost:9999"
+
     def test_graceful_failure_on_no_connection(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         assert not repo.is_available()
 
     def test_insert_fails_gracefully(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         memory = CandidateMemory(memory_type="fact", content="test")
         result = repo.insert_memory(memory)
         assert result is False
 
     def test_get_fails_gracefully(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         result = repo.get_memory("some-id")
         assert result is None
 
     def test_query_fails_gracefully(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         result = repo.query_memories()
         assert result == []
 
@@ -58,7 +60,7 @@ class TestTerminusAdapter:
         assert "@type" not in decoded
 
     def test_branch_local_inference_storage(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         branch = "inference/sess-123"
         node = InferenceNode(
             text="The deployment issue may be caused by stale credentials.",
@@ -81,7 +83,7 @@ class TestTerminusAdapter:
         assert repo.query_memories(branch="main") == []
 
     def test_branch_local_facet_storage(self):
-        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        repo = TerminusMemoryRepository(url=self.UNAVAILABLE_URL)
         branch = "inference/sess-123"
         relation = FacetRelation(
             source_node_id="claim-1",

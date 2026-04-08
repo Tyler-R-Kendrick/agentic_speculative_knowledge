@@ -44,9 +44,14 @@ class RetrievalComposer:
                 speculative = self.terminus.get_inference_nodes(inference_branch)
                 result["speculative_inference"] = sorted(
                     speculative,
-                    key=lambda item: item.get("ranking_score") if item.get("ranking_score") is not None else -1.0,
+                    key=self._ranking_score_key,
                     reverse=True,
                 )
                 result["facet_relations"] = self.terminus.get_facet_relations(inference_branch)
 
         return result
+
+    @staticmethod
+    def _ranking_score_key(item: dict[str, Any]) -> float:
+        score = item.get("ranking_score")
+        return score if score is not None else -1.0
