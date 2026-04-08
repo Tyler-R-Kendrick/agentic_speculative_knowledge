@@ -56,9 +56,10 @@ class TestInferenceFlow:
         result = pipeline.run(item, session_id="sess-2")
 
         assert result.success
-        assert result.terminus_written >= 1
+        assert result.terminus_written == 0
         assert result.inference_candidates >= 1
         assert result.ranked_inference_candidates == 0
+        assert repo.query_memories(branch="session/sess-2")
         stored = repo.query_inference_nodes("inference/sess-2")
         assert stored[0]["ranking_score"] is None
 

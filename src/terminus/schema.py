@@ -20,11 +20,13 @@ MEMORY_SCHEMA = {
     "source_file": {"@type": "Optional", "@class": "xsd:string"},
     "source_commit": {"@type": "Optional", "@class": "xsd:string"},
     "source_branch": {"@type": "Optional", "@class": "xsd:string"},
+    "source_kind": {"@type": "Optional", "@class": "xsd:string"},
+    "source_ref": {"@type": "Optional", "@class": "xsd:string"},
     "source_terminus_commit": {"@type": "Optional", "@class": "xsd:string"},
     "source_terminus_branch": {"@type": "Optional", "@class": "xsd:string"},
     "session_id": {"@type": "Optional", "@class": "xsd:string"},
     "task_id": {"@type": "Optional", "@class": "xsd:string"},
-    "claim_ids": {"@type": "Optional", "@class": "xsd:string"},
+    "claim_ids": {"@type": "Optional", "@class": {"@type": "List", "@class": "xsd:string"}},
 }
 
 CLAIM_SCHEMA = {

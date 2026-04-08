@@ -70,7 +70,7 @@ class ClaimExtractor:
 
     def _decompose(self, sentences: list[str]) -> list[str]:
         result = []
-        split_pattern = re.compile(r"\s+(?:and|but|however|also)\s+(?=[A-Z])", re.IGNORECASE)
+        split_pattern = re.compile(r"\s+(?:(?i:and|but|however|also))\s+(?=[A-Z])")
         for s in sentences:
             parts = split_pattern.split(s)
             if len(parts) > 1:

@@ -1,6 +1,7 @@
 import pathlib
 from collections import defaultdict
 from typing import Optional, Any
+import os
 
 from src.claims.models import Claim
 from src.inference.models import FacetRelation, InferenceNode
@@ -24,22 +25,25 @@ class TerminusMemoryRepository:
         url: str = "http://localhost:6363",
         team: str = "admin",
         db: str = "agent_memory",
-        user: str = "admin",
-        password: str = "root",
+        user: Optional[str] = None,
+        password: Optional[str] = None,
     ):
         self.url = url
-        self.team = team
-        self.db = db
-        self.user = user
-        self.password = password
+        self.team = os.getenv("TERMINUSDB_TEAM", team)
+        self.db = os.getenv("TERMINUSDB_DB", db)
+        self.user = user or os.getenv("TERMINUSDB_USER")
+        self.password = password or os.getenv("TERMINUSDB_PASSWORD")
         self._client = None
         self._connected = False
+        self._active_branch = None
         self._fallback_store = defaultdict(lambda: defaultdict(list))
         self.ensure_branch("main")
 
     def _get_client(self):
         if not HAS_TERMINUS:
             raise TerminusConnectionError("terminusdb-client not installed")
+        if not self.user or not self.password:
+            raise TerminusConnectionError("TerminusDB credentials must be provided explicitly or via environment")
         if self._client is None:
             try:
                 client = TerminusClient(self.url)
@@ -51,8 +55,65 @@ class TerminusMemoryRepository:
         return self._client
 
     def insert_memory(self, memory: CandidateMemory) -> bool:
-        self.write_memory("main", memory)
-        return self._connected
+        return self.write_memory("main", memory)
+
+    def _select_branch(self, client, branch: str) -> None:
+        if self._active_branch == branch:
+            return
+
+        selectors = ("checkout", "reset")
+        for method_name in selectors:
+            method = getattr(client, method_name, None)
+            if not callable(method):
+                continue
+            for call in (
+                lambda: method(branch=branch),
+                lambda: method(branch_name=branch),
+                lambda: method(ref=branch),
+                lambda: method(branch),
+            ):
+                try:
+                    call()
+                    self._active_branch = branch
+                    return
+                except TypeError:
+                    continue
+                except Exception as e:
+                    raise TerminusConnectionError(f"Cannot select branch {branch}: {e}") from e
+
+        if hasattr(client, "branch"):
+            try:
+                client.branch = branch
+                self._active_branch = branch
+                return
+            except Exception as e:
+                raise TerminusConnectionError(f"Cannot select branch {branch}: {e}") from e
+
+        raise TerminusConnectionError("Connected Terminus client does not support explicit branch selection")
+
+    def _get_branch_client(self, branch: str):
+        client = self._get_client()
+        self._select_branch(client, branch)
+        return client
+
+    @staticmethod
+    def _filter_documents(documents: list[dict], filters: Optional[dict] = None) -> list[dict]:
+        if not filters:
+            return documents
+        return [doc for doc in documents if all(doc.get(key) == value for key, value in filters.items())]
+
+    def _query_documents(self, branch: str, doc_type: str, filters: Optional[dict] = None) -> list[dict]:
+        local_documents = list(self._fallback_store[branch].get(doc_type, []))
+        local_documents = self._filter_documents(local_documents, filters)
+        try:
+            client = self._get_branch_client(branch)
+            docs = client.get_all_documents(graph_type="instance", as_list=True)
+            remote_documents = [decode_document(doc) for doc in docs if doc.get("@type") == doc_type]
+            return self._filter_documents(remote_documents, filters)
+        except TerminusConnectionError:
+            return local_documents
+        except Exception:
+            return local_documents
 
     def ensure_branch(self, branch: str) -> str:
         self._fallback_store[branch]
@@ -62,6 +123,7 @@ class TerminusMemoryRepository:
                 client.create_branch(branch)
             except Exception:
                 pass
+            self._select_branch(client, branch)
         except TerminusConnectionError:
             pass
         return branch
@@ -70,57 +132,57 @@ class TerminusMemoryRepository:
         self.ensure_branch(branch)
         self._fallback_store[branch]["Memory"].append(memory.model_dump(mode="json"))
         try:
-            client = self._get_client()
+            client = self._get_branch_client(branch)
             doc = encode_document(memory.model_dump(mode="json"))
             doc["@type"] = "Memory"
             client.insert_document(doc, graph_type="instance", commit_msg=f"write memory {memory.memory_id}")
             return True
         except TerminusConnectionError:
-            return True
+            return False
         except Exception:
-            return True
+            return False
 
     def write_claim(self, branch: str, claim: Claim) -> bool:
         self.ensure_branch(branch)
         self._fallback_store[branch]["Claim"].append(claim.model_dump(mode="json"))
         try:
-            client = self._get_client()
+            client = self._get_branch_client(branch)
             doc = encode_document(claim.model_dump(mode="json"))
             doc["@type"] = "Claim"
             client.insert_document(doc, graph_type="instance", commit_msg=f"write claim {claim.claim_id}")
             return True
         except TerminusConnectionError:
-            return True
+            return False
         except Exception:
-            return True
+            return False
 
     def write_inference_node(self, branch: str, inference_node: InferenceNode) -> bool:
         self.ensure_branch(branch)
         self._fallback_store[branch]["InferenceNode"].append(inference_node.model_dump(mode="json"))
         try:
-            client = self._get_client()
+            client = self._get_branch_client(branch)
             doc = encode_document(inference_node.model_dump(mode="json"))
             doc["@type"] = "InferenceNode"
             client.insert_document(doc, graph_type="instance", commit_msg=f"write inference {inference_node.inference_id}")
             return True
         except TerminusConnectionError:
-            return True
+            return False
         except Exception:
-            return True
+            return False
 
     def write_facet_relation(self, branch: str, relation: FacetRelation) -> bool:
         self.ensure_branch(branch)
         self._fallback_store[branch]["FacetRelation"].append(relation.model_dump(mode="json"))
         try:
-            client = self._get_client()
+            client = self._get_branch_client(branch)
             doc = encode_document(relation.model_dump(mode="json"))
             doc["@type"] = "FacetRelation"
             client.insert_document(doc, graph_type="instance", commit_msg=f"write facet relation {relation.relation_id}")
             return True
         except TerminusConnectionError:
-            return True
+            return False
         except Exception:
-            return True
+            return False
 
     def get_memory(self, memory_id: str) -> Optional[dict]:
         for branch_data in self._fallback_store.values():
@@ -137,33 +199,23 @@ class TerminusMemoryRepository:
             return None
 
     def query_memories(self, filters: dict = None, branch: str = "main") -> list[dict]:
-        memories = list(self._fallback_store[branch].get("Memory", []))
-        if filters:
-            memories = [memory for memory in memories if all(memory.get(key) == value for key, value in filters.items())]
-        try:
-            client = self._get_client()
-            docs = client.get_all_documents(graph_type="instance", as_list=True)
-            results = [decode_document(d) for d in docs if d.get("@type") == "Memory"]
-            return results or memories
-        except TerminusConnectionError:
-            return memories
-        except Exception:
-            return memories
+        return self._query_documents(branch=branch, doc_type="Memory", filters=filters)
 
     def query_claims(self, branch: str) -> list[dict]:
-        return list(self._fallback_store[branch].get("Claim", []))
+        return self._query_documents(branch=branch, doc_type="Claim")
 
     def query_inference_nodes(self, branch: str) -> list[dict]:
-        return list(self._fallback_store[branch].get("InferenceNode", []))
+        return self._query_documents(branch=branch, doc_type="InferenceNode")
 
     def query_facet_relations(self, branch: str) -> list[dict]:
-        return list(self._fallback_store[branch].get("FacetRelation", []))
+        return self._query_documents(branch=branch, doc_type="FacetRelation")
 
     def is_available(self) -> bool:
-        if any(any(values for values in branch.values()) for branch in self._fallback_store.values()):
-            return True
         try:
             self._get_client()
             return True
         except Exception:
             return False
+
+    def has_local_data(self) -> bool:
+        return any(any(values for values in branch.values()) for branch in self._fallback_store.values())

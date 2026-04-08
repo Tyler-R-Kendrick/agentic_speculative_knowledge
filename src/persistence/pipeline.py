@@ -64,6 +64,7 @@ class MutationPipeline:
         extract_claims: bool = True,
     ) -> PipelineResult:
         result = PipelineResult()
+        working_set_path = self.working_set.working_set_file.relative_to(self.root_dir).as_posix()
 
         # Step 1: active memory write
         try:
@@ -79,7 +80,7 @@ class MutationPipeline:
             event = JournalEvent(
                 session_id=session_id or item.session_id,
                 mutation_kind=mutation_kind,
-                changed_files=["working-set.jsonl"],
+                changed_files=[working_set_path],
             )
             self.journal.append(event)
             result.journal_event_id = event.event_id
@@ -91,7 +92,7 @@ class MutationPipeline:
             try:
                 commit_hash = self.git_service.commit(
                     message=f"[{mutation_kind}] add working item {item.item_id}",
-                    files=["working-set.jsonl"],
+                    files=[working_set_path],
                 )
                 result.git_commit = commit_hash
             except Exception as e:

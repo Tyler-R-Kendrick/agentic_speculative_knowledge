@@ -59,6 +59,14 @@ class TestClaimExtractor:
         claims = self.extractor.extract("Yes.")
         assert len(claims) == 0
 
+    def test_decomposition_does_not_split_lowercase_follow_on_clause(self):
+        claims = self.extractor.extract(
+            "The service restarted and then recovered after the cache warmed up."
+        )
+
+        assert len(claims) == 1
+        assert claims[0].claim_text == "The service restarted and then recovered after the cache warmed up."
+
 
 class TestClaimValidator:
     def setup_method(self):

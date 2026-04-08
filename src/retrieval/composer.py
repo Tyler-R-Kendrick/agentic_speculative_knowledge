@@ -38,7 +38,7 @@ class RetrievalComposer:
             "facet_relations": [],
         }
 
-        if include_terminus and self.terminus.is_available():
+        if include_terminus and (self.terminus.is_available() or self.terminus.repo.has_local_data()):
             result["terminus_memories"] = self.terminus.get_memories(branch="main")
             if include_speculative and inference_branch:
                 speculative = self.terminus.get_inference_nodes(inference_branch)
