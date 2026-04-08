@@ -1,7 +1,8 @@
 import json
-import os
 import pathlib
 import shutil
+import subprocess
+import sys
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -31,17 +32,20 @@ class TestExampleNotebooks:
             NOTEBOOKS_DIR / ".demo-memory-02",
             NOTEBOOKS_DIR / ".demo-memory-03",
         ]
-        previous_cwd = pathlib.Path.cwd()
         try:
-            os.chdir(REPO_ROOT)
             for notebook_path in NOTEBOOK_FILES:
                 notebook = json.loads(notebook_path.read_text())
-                namespace = {"__name__": "__main__"}
-                for cell in notebook["cells"]:
-                    if cell["cell_type"] != "code":
-                        continue
-                    exec("".join(cell["source"]), namespace)
+                code = "\n\n".join(
+                    "".join(cell["source"])
+                    for cell in notebook["cells"]
+                    if cell["cell_type"] == "code"
+                )
+                subprocess.run(
+                    [sys.executable, "-c", code],
+                    cwd=REPO_ROOT,
+                    check=True,
+                    timeout=60,
+                )
         finally:
-            os.chdir(previous_cwd)
             for demo_path in demo_paths:
                 shutil.rmtree(demo_path, ignore_errors=True)
