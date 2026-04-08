@@ -176,4 +176,4 @@ The repository now includes a few simple Python notebooks under `notebooks/`:
 - `02_speculative_inference_and_facets.ipynb` — runs the mutation pipeline, generates speculative inference candidates, ranks them, and inspects facet relations.
 - `03_historical_recall.ipynb` — shows branch-local recall across sessions and the journal-backed history of memory mutations.
 
-Each notebook is designed to run locally with the repository code only. The Terminus examples use the repository's in-process fallback store, so they do not require a live TerminusDB server.
+Each notebook is designed to run locally with the repository code only. The Terminus examples intentionally point at an unused local URL so `TerminusMemoryRepository` falls back to its in-process store, which means the notebooks do not require a live TerminusDB server.

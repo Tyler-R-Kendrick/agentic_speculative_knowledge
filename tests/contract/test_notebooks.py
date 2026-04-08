@@ -16,7 +16,9 @@ NOTEBOOK_FILES = [
 
 
 def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
-    prefix = notebook_path.stem.split("_", 1)[0]
+    prefix, separator, _ = notebook_path.stem.partition("_")
+    if not separator or not prefix.isdigit():
+        raise ValueError(f"Unexpected notebook filename format: {notebook_path.name}")
     return NOTEBOOKS_DIR / f".demo-memory-{prefix}"
 
 
