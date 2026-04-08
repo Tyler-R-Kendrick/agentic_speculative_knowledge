@@ -1,19 +1,19 @@
 from src.active_memory.models import WorkingItem
+from src.manifold_sidecar import ManifoldRankingService
 from src.persistence.pipeline import MutationPipeline
 from src.retrieval.composer import RetrievalComposer
-from src.sidecar.service import ManifoldSidecar
 from src.terminus.adapter import TerminusMemoryRepository
 
 
 class TestInferenceFlow:
     def test_pipeline_persists_ranked_inference_to_inference_branch(self, tmp_path):
         repo = TerminusMemoryRepository(url="http://localhost:9999")
-        sidecar = ManifoldSidecar(model_id="sidecar-v1", geometry_version="geo-v1")
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
         pipeline = MutationPipeline(
             tmp_path,
             enable_terminus=True,
             terminus_repo=repo,
-            sidecar=sidecar,
+            manifold_service=service,
             enable_inference=True,
         )
         item = WorkingItem(
@@ -29,22 +29,22 @@ class TestInferenceFlow:
         assert result.inference_branch == "inference/sess-1"
         stored = repo.query_inference_nodes("inference/sess-1")
         assert len(stored) >= 1
-        assert stored[0]["ranking_model_id"] == "sidecar-v1"
+        assert stored[0]["ranking_model_id"] == "manifold-ranker-v1"
 
-    def test_sidecar_failure_does_not_block_trusted_persistence(self, tmp_path):
-        class FailingSidecar:
+    def test_manifold_service_failure_does_not_block_trusted_persistence(self, tmp_path):
+        class FailingManifoldService:
             def rank_inference_candidates(self, request):
-                raise RuntimeError("sidecar unavailable")
+                raise RuntimeError("manifold service unavailable")
 
             def rank_facet_candidates(self, request):
-                raise RuntimeError("sidecar unavailable")
+                raise RuntimeError("manifold service unavailable")
 
         repo = TerminusMemoryRepository(url="http://localhost:9999")
         pipeline = MutationPipeline(
             tmp_path,
             enable_terminus=True,
             terminus_repo=repo,
-            sidecar=FailingSidecar(),
+            manifold_service=FailingManifoldService(),
             enable_inference=True,
         )
         item = WorkingItem(
@@ -64,12 +64,12 @@ class TestInferenceFlow:
 
     def test_retrieval_suppresses_speculative_results_by_default(self, tmp_path):
         repo = TerminusMemoryRepository(url="http://localhost:9999")
-        sidecar = ManifoldSidecar(model_id="sidecar-v1", geometry_version="geo-v1")
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
         pipeline = MutationPipeline(
             tmp_path,
             enable_terminus=True,
             terminus_repo=repo,
-            sidecar=sidecar,
+            manifold_service=service,
             enable_inference=True,
         )
         item = WorkingItem(
@@ -89,3 +89,26 @@ class TestInferenceFlow:
 
         assert trusted["speculative_inference"] == []
         assert len(exploratory["speculative_inference"]) >= 1
+
+    def test_pipeline_accepts_legacy_sidecar_argument_for_compatibility(self, tmp_path):
+        repo = TerminusMemoryRepository(url="http://localhost:9999")
+        pipeline = MutationPipeline(
+            tmp_path,
+            enable_terminus=True,
+            terminus_repo=repo,
+            sidecar=ManifoldRankingService(model_id="compat-ranker-v1", geometry_version="geo-v1"),
+            enable_inference=True,
+        )
+
+        result = pipeline.run(
+            WorkingItem(
+                item_type="observation",
+                content="The worker queue depth increased after the nightly job started.",
+                session_id="sess-4",
+            ),
+            session_id="sess-4",
+        )
+
+        assert result.success
+        stored = repo.query_inference_nodes("inference/sess-4")
+        assert stored[0]["ranking_model_id"] == "compat-ranker-v1"

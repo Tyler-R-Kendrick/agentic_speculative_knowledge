@@ -8,7 +8,7 @@ from src.journal.appender import JournalAppender
 from src.claims.extractor import ClaimExtractor
 from src.claims.writer import ClaimWriter
 from src.inference.generator import InferenceGenerator
-from src.sidecar.service import ManifoldSidecar, RankingRequest
+from src.manifold_sidecar import ManifoldRankingRequest, ManifoldRankingService
 from src.terminus.adapter import TerminusMemoryRepository
 from src.terminus.branch_manager import inference_branch_name, session_branch_name
 from src.normalization.mapper import ClaimToMemoryMapper
@@ -38,7 +38,8 @@ class MutationPipeline:
         enable_inference: bool = False,
         git_service=None,
         terminus_repo: Optional[TerminusMemoryRepository] = None,
-        sidecar: Optional[ManifoldSidecar] = None,
+        manifold_service: Optional[ManifoldRankingService] = None,
+        sidecar: Optional[ManifoldRankingService] = None,
     ):
         self.root_dir = pathlib.Path(root_dir)
         self.enable_git = enable_git
@@ -46,7 +47,7 @@ class MutationPipeline:
         self.enable_inference = enable_inference
         self.git_service = git_service
         self.terminus_repo = terminus_repo
-        self.sidecar = sidecar
+        self.manifold_service = manifold_service or sidecar
 
         self.working_set = WorkingSetAppender(root_dir)
         self.journal = JournalAppender(root_dir)
@@ -154,10 +155,10 @@ class MutationPipeline:
 
                 ranked_inference = inference_candidates
                 ranked_facets = []
-                if self.sidecar and inference_candidates:
+                if self.manifold_service and inference_candidates:
                     try:
-                        ranking = self.sidecar.rank_inference_candidates(
-                            RankingRequest(
+                        ranking = self.manifold_service.rank_inference_candidates(
+                            ManifoldRankingRequest(
                                 branch_name=branch,
                                 ranking_mode="inference_candidate_ranking",
                                 seed_context={"session_id": session_id or item.session_id},
@@ -169,10 +170,10 @@ class MutationPipeline:
                     except Exception as e:
                         result.errors.append(f"sidecar_inference: {e}")
 
-                if self.sidecar and facet_candidates:
+                if self.manifold_service and facet_candidates:
                     try:
-                        ranking = self.sidecar.rank_facet_candidates(
-                            RankingRequest(
+                        ranking = self.manifold_service.rank_facet_candidates(
+                            ManifoldRankingRequest(
                                 branch_name=branch,
                                 ranking_mode="facet_candidate_ranking",
                                 seed_context={"session_id": session_id or item.session_id},

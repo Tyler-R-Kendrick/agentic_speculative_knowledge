@@ -1,11 +1,13 @@
 import pytest
 
 from src.inference.models import FacetRelation, InferenceNode
-from src.sidecar.service import (
-    BranchContextError,
-    ManifoldSidecar,
-    RankingRequest,
+from src.manifold_sidecar import (
+    ManifoldBranchContextError,
+    ManifoldModelMetadata,
+    ManifoldRankingRequest,
+    ManifoldRankingService,
 )
+from src.sidecar import ManifoldSidecar
 
 
 class TestInferenceNodeSchema:
@@ -45,10 +47,10 @@ class TestFacetRelationSchema:
             )
 
 
-class TestManifoldSidecar:
+class TestManifoldRankingService:
     def test_ranks_inference_candidates(self):
-        sidecar = ManifoldSidecar(model_id="sidecar-v1", geometry_version="geo-v1")
-        request = RankingRequest(
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
+        request = ManifoldRankingRequest(
             branch_name="inference/sess-1",
             ranking_mode="inference_candidate_ranking",
             seed_context={"session_id": "sess-1"},
@@ -66,29 +68,29 @@ class TestManifoldSidecar:
             ],
         )
 
-        response = sidecar.rank_inference_candidates(request)
+        response = service.rank_inference_candidates(request)
         assert len(response.candidates) == 1
         candidate = response.candidates[0]
         assert candidate.ranking_score > 0
-        assert candidate.ranking_model_id == "sidecar-v1"
+        assert candidate.ranking_model_id == "manifold-ranker-v1"
         assert candidate.ranking_run_id
         assert response.geometry_version == "geo-v1"
 
     def test_enforces_branch_context(self):
-        sidecar = ManifoldSidecar()
-        request = RankingRequest(
+        service = ManifoldRankingService()
+        request = ManifoldRankingRequest(
             branch_name="main",
             ranking_mode="inference_candidate_ranking",
             seed_context={},
             candidates=[],
         )
 
-        with pytest.raises(BranchContextError):
-            sidecar.rank_inference_candidates(request)
+        with pytest.raises(ManifoldBranchContextError):
+            service.rank_inference_candidates(request)
 
     def test_ranks_facet_candidates(self):
-        sidecar = ManifoldSidecar(model_id="sidecar-v1", geometry_version="geo-v1")
-        request = RankingRequest(
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
+        request = ManifoldRankingRequest(
             branch_name="inference/sess-1",
             ranking_mode="facet_candidate_ranking",
             seed_context={"session_id": "sess-1"},
@@ -107,8 +109,27 @@ class TestManifoldSidecar:
             ],
         )
 
-        response = sidecar.rank_facet_candidates(request)
+        response = service.rank_facet_candidates(request)
         assert len(response.candidates) == 1
         relation = response.candidates[0]
         assert relation.relatedness_score > 0
-        assert relation.ranking_model_id == "sidecar-v1"
+        assert relation.ranking_model_id == "manifold-ranker-v1"
+
+    def test_exposes_current_model_metadata(self):
+        service = ManifoldRankingService(
+            model_id="manifold-ranker-v1",
+            geometry_version="geo-v2",
+            embedding_version="emb-v3",
+        )
+
+        metadata = service.get_current_model_metadata()
+
+        assert isinstance(metadata, ManifoldModelMetadata)
+        assert metadata.model_id == "manifold-ranker-v1"
+        assert metadata.geometry_version == "geo-v2"
+        assert metadata.embedding_version == "emb-v3"
+        assert "graph_context" in metadata.ranking_features
+
+    def test_legacy_sidecar_alias_targets_formal_service(self):
+        legacy = ManifoldSidecar()
+        assert isinstance(legacy, ManifoldRankingService)
