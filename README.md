@@ -1,20 +1,10 @@
-# agent_memory
+# Adaptive Speculative Knowledge
 
-`agent_memory` is a graph-first memory system for AI agents that separates mutable working memory from durable long-term memory and runtime inference.
-
-## Problem the project is solving
-
-Agent systems need memory that supports two conflicting requirements at the same time:
-
-- **fast, editable working state** for the current session
-- **durable, auditable long-term knowledge** with provenance, temporality, and trust boundaries
-
-Traditional single-store approaches tend to blur those concerns. Pure file storage is easy to inspect and diff, but weak for structured long-term knowledge. Pure vector-first systems are useful for similarity search, but they are not a sufficient source of truth for explicit claims, temporal facts, validation state, or branch-aware provenance.
-
-This project solves that by combining:
+This repo implements an agentic memory system for knowledge and discovery.
 
 - **filesystem active memory** for mutable working cognition
-- **TerminusDB temporal graph storage** for canonical persistent and speculative knowledge
+- **TerminusDB temporal graph storage** for canonical persistent memory
+- **knowledge facet generation** for speculative inference
 - **a manifold ranking sidecar** for geometric scoring of inference candidates and knowledge facets
 
 ## Core architectural approach
