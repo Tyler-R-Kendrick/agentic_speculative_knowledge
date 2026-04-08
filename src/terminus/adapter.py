@@ -109,7 +109,8 @@ class TerminusMemoryRepository:
             client = self._get_branch_client(branch)
             docs = client.get_all_documents(graph_type="instance", as_list=True)
             remote_documents = [decode_document(doc) for doc in docs if doc.get("@type") == doc_type]
-            return self._filter_documents(remote_documents, filters)
+            remote_documents = self._filter_documents(remote_documents, filters)
+            return remote_documents or local_documents
         except TerminusConnectionError:
             return local_documents
         except Exception:

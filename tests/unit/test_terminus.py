@@ -1,5 +1,6 @@
 import pytest
 from collections import defaultdict
+from src.claims.models import Claim
 from src.terminus.adapter import TerminusMemoryRepository
 from src.terminus.branch_manager import (
     session_branch_name,
@@ -106,7 +107,7 @@ class TestTerminusAdapter:
             policy_version="policy-v1",
         )
 
-        assert repo.write_inference_node(branch, node)
+        assert repo.write_inference_node(branch, node) is False
         stored = repo.query_inference_nodes(branch)
         assert len(stored) == 1
         assert stored[0]["text"] == node.text
@@ -127,7 +128,7 @@ class TestTerminusAdapter:
             facet_strength=0.91,
         )
 
-        assert repo.write_facet_relation(branch, relation)
+        assert repo.write_facet_relation(branch, relation) is False
         stored = repo.query_facet_relations(branch)
         assert len(stored) == 1
         assert stored[0]["facet_type"] == "paraphrase_of"
