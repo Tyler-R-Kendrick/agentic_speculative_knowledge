@@ -7,7 +7,7 @@ import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
-NOTEBOOK_EXECUTION_TIMEOUT = 120
+NOTEBOOK_EXECUTION_TIMEOUT_SECONDS = 120
 NOTEBOOK_FILES = [
     NOTEBOOKS_DIR / "01_active_memory_basics.ipynb",
     NOTEBOOKS_DIR / "02_speculative_inference_and_facets.ipynb",
@@ -47,8 +47,9 @@ class TestExampleNotebooks:
                     [sys.executable, "-c", code],
                     cwd=REPO_ROOT,
                     check=True,
-                    timeout=NOTEBOOK_EXECUTION_TIMEOUT,
+                    timeout=NOTEBOOK_EXECUTION_TIMEOUT_SECONDS,
                 )
         finally:
-            for demo_path in (notebook_demo_path(notebook_path) for notebook_path in NOTEBOOK_FILES):
+            for cleanup_notebook_path in NOTEBOOK_FILES:
+                demo_path = notebook_demo_path(cleanup_notebook_path)
                 shutil.rmtree(demo_path, ignore_errors=True)
