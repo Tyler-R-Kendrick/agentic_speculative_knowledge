@@ -51,7 +51,8 @@ class TerminusMemoryRepository:
         return self._client
 
     def insert_memory(self, memory: CandidateMemory) -> bool:
-        return self.write_memory("main", memory)
+        self.write_memory("main", memory)
+        return self._connected
 
     def ensure_branch(self, branch: str) -> str:
         self._fallback_store[branch]
