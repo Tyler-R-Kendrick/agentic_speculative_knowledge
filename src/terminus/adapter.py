@@ -226,4 +226,5 @@ class TerminusMemoryRepository:
             return False
 
     def has_local_data(self) -> bool:
+        """Return True when any branch has data cached in the in-process fallback store."""
         return any(any(values for values in branch.values()) for branch in self._fallback_store.values())
