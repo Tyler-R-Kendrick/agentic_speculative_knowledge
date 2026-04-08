@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional, Any
 import uuid
 
+from src.claims.models import Claim  # canonical Claim definition
+
 
 class SessionState(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -52,19 +54,3 @@ class Observation(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     session_id: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-
-
-class Claim(BaseModel):
-    claim_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    source_ref: Optional[str] = None
-    source_file: Optional[str] = None
-    source_commit: Optional[str] = None
-    claim_text: str
-    claim_type: str = "factual"
-    decontextualized: bool = False
-    ambiguity_flag: bool = False
-    confidence: float = 1.0
-    entities: list[str] = Field(default_factory=list)
-    provenance_span: Optional[str] = None
-    observed_at: Optional[datetime] = None
-    extracted_at: datetime = Field(default_factory=datetime.utcnow)

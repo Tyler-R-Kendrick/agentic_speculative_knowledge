@@ -85,21 +85,24 @@ class MutationPipeline:
                 result.errors.append(f"git: {e}")
 
         # Step 4: claim extraction
+        extracted_claims = []
         if extract_claims:
             try:
-                claims = self.claim_extractor.extract(
+                extracted_claims = self.claim_extractor.extract(
                     text=item.content,
                     source_ref=item.item_id,
                 )
-                self.claim_writer.write_many(claims)
-                result.claims_extracted = len(claims)
+                self.claim_writer.write_many(extracted_claims)
+                result.claims_extracted = len(extracted_claims)
             except Exception as e:
                 result.errors.append(f"claims: {e}")
 
         # Step 5: TerminusDB write (optional)
         if self.enable_terminus and self.terminus_repo:
             try:
-                claims = self.claim_extractor.extract(text=item.content, source_ref=item.item_id)
+                claims = extracted_claims if extract_claims else self.claim_extractor.extract(
+                    text=item.content, source_ref=item.item_id
+                )
                 memories = self.mapper.map_many(claims, session_id=item.session_id)
                 written = 0
                 for m in memories:
