@@ -43,7 +43,14 @@ class TerminusMemoryRepository:
         if not HAS_TERMINUS:
             raise TerminusConnectionError("terminusdb-client not installed")
         if not self.user or not self.password:
-            raise TerminusConnectionError("TerminusDB credentials must be provided explicitly or via environment")
+            missing_credentials = []
+            if not self.user:
+                missing_credentials.append("TERMINUSDB_USER")
+            if not self.password:
+                missing_credentials.append("TERMINUSDB_PASSWORD")
+            raise TerminusConnectionError(
+                f"TerminusDB credentials must be provided explicitly or via the following environment variables: {', '.join(missing_credentials)}"
+            )
         if self._client is None:
             try:
                 client = TerminusClient(self.url)

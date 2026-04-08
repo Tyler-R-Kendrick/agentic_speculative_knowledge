@@ -67,6 +67,13 @@ class TestClaimExtractor:
         assert len(claims) == 1
         assert claims[0].claim_text == "The service restarted and then recovered after the cache warmed up."
 
+    def test_decomposition_still_splits_uppercase_conjunctions_before_uppercase_clause(self):
+        claims = self.extractor.extract(
+            "The service restarted after the deployment AND The cache recovered after the failover."
+        )
+
+        assert len(claims) == 2
+
 
 class TestClaimValidator:
     def setup_method(self):

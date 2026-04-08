@@ -27,7 +27,7 @@ class FakeTerminusClient:
         self.branches = defaultdict(list)
 
     def create_branch(self, branch: str):
-        self.branches[branch]
+        self.branches.setdefault(branch, [])
 
     def checkout(self, branch: str):
         self.current_branch = branch
@@ -41,9 +41,9 @@ class FakeTerminusClient:
         return list(self.branches[self.current_branch])
 
     def get_document(self, document_id: str):
-        document_type, _, document_key = document_id.partition("/")
+        type_name, _, document_key = document_id.partition("/")
         for doc in self.branches[self.current_branch]:
-            if doc.get("@type") == document_type and doc.get(f"{document_type.lower()}_id") == document_key:
+            if doc.get("@type") == type_name and doc.get(f"{type_name.lower()}_id") == document_key:
                 return doc
         raise KeyError(document_id)
 
