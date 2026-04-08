@@ -115,6 +115,53 @@ class TestManifoldRankingService:
         assert relation.relatedness_score > 0
         assert relation.ranking_model_id == "manifold-ranker-v1"
 
+    def test_inference_ranking_ignores_non_inference_candidates(self):
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
+        request = ManifoldRankingRequest(
+            branch_name="inference/sess-1",
+            ranking_mode="inference_candidate_ranking",
+            seed_context={"session_id": "sess-1"},
+            candidates=[
+                FacetRelation(
+                    source_node_id="claim-1",
+                    target_node_id="claim-2",
+                    facet_type="paraphrase_of",
+                    provenance_commit="abc123",
+                    ranking_model_id="seed-model",
+                    ranking_run_id="seed-run",
+                    relatedness_score=0.0,
+                    distance_score=0.0,
+                    facet_strength=0.0,
+                )
+            ],
+        )
+
+        response = service.rank_inference_candidates(request)
+        assert response.candidates == []
+
+    def test_facet_ranking_ignores_non_facet_candidates(self):
+        service = ManifoldRankingService(model_id="manifold-ranker-v1", geometry_version="geo-v1")
+        request = ManifoldRankingRequest(
+            branch_name="inference/sess-1",
+            ranking_mode="facet_candidate_ranking",
+            seed_context={"session_id": "sess-1"},
+            candidates=[
+                InferenceNode(
+                    text="The queue depth may reflect a stalled worker pool.",
+                    inference_mode="abductive",
+                    generated_from_nodes=["claim-1"],
+                    generated_from_edges=["supports:claim-1"],
+                    source_branch="inference/sess-1",
+                    source_commit="abc123",
+                    prompt_template_id="tmpl-1",
+                    policy_version="policy-v1",
+                )
+            ],
+        )
+
+        response = service.rank_facet_candidates(request)
+        assert response.candidates == []
+
     def test_exposes_current_model_metadata(self):
         service = ManifoldRankingService(
             model_id="manifold-ranker-v1",
