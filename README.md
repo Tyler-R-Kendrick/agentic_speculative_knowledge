@@ -168,3 +168,12 @@ This project is aimed at building an agent memory stack where:
 - inference meta-graphs support runtime knowledge discovery
 - manifold geometry improves discovery quality without collapsing trust boundaries
 
+## Notebook demos
+
+The repository now includes a few simple Python notebooks under `notebooks/`:
+
+- `01_active_memory_basics.ipynb` — starts a session, writes working memory, stores entity/task cards, extracts claims, and retrieves the active context.
+- `02_speculative_inference_and_facets.ipynb` — runs the mutation pipeline, generates speculative inference candidates, ranks them, and inspects facet relations.
+- `03_historical_recall.ipynb` — shows branch-local recall across sessions and the journal-backed history of memory mutations.
+
+Each notebook is designed to run locally with the repository code only. The Terminus examples use the repository's in-process fallback store, so they do not require a live TerminusDB server.

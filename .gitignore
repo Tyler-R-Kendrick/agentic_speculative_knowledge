@@ -49,6 +49,7 @@ instance/
 docs/_build/
 target/
 .ipynb_checkpoints
+notebooks/.demo-memory-*/
 profile_default/
 ipython_config.py
 .env
