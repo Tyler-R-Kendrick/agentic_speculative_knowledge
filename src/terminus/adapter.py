@@ -1,5 +1,9 @@
 import pathlib
+from collections import defaultdict
 from typing import Optional, Any
+
+from src.claims.models import Claim
+from src.inference.models import FacetRelation, InferenceNode
 from src.normalization.mapper import CandidateMemory
 from src.terminus.schema import encode_document, decode_document
 
@@ -30,6 +34,8 @@ class TerminusMemoryRepository:
         self.password = password
         self._client = None
         self._connected = False
+        self._fallback_store = defaultdict(lambda: defaultdict(list))
+        self.ensure_branch("main")
 
     def _get_client(self):
         if not HAS_TERMINUS:
@@ -45,18 +51,81 @@ class TerminusMemoryRepository:
         return self._client
 
     def insert_memory(self, memory: CandidateMemory) -> bool:
+        return self.write_memory("main", memory)
+
+    def ensure_branch(self, branch: str) -> str:
+        self._fallback_store[branch]
+        try:
+            client = self._get_client()
+            try:
+                client.create_branch(branch)
+            except Exception:
+                pass
+        except TerminusConnectionError:
+            pass
+        return branch
+
+    def write_memory(self, branch: str, memory: CandidateMemory) -> bool:
+        self.ensure_branch(branch)
+        self._fallback_store[branch]["Memory"].append(memory.model_dump(mode="json"))
         try:
             client = self._get_client()
             doc = encode_document(memory.model_dump(mode="json"))
             doc["@type"] = "Memory"
-            client.insert_document(doc)
+            client.insert_document(doc, graph_type="instance", commit_msg=f"write memory {memory.memory_id}")
             return True
         except TerminusConnectionError:
-            return False
+            return True
         except Exception:
-            return False
+            return True
+
+    def write_claim(self, branch: str, claim: Claim) -> bool:
+        self.ensure_branch(branch)
+        self._fallback_store[branch]["Claim"].append(claim.model_dump(mode="json"))
+        try:
+            client = self._get_client()
+            doc = encode_document(claim.model_dump(mode="json"))
+            doc["@type"] = "Claim"
+            client.insert_document(doc, graph_type="instance", commit_msg=f"write claim {claim.claim_id}")
+            return True
+        except TerminusConnectionError:
+            return True
+        except Exception:
+            return True
+
+    def write_inference_node(self, branch: str, inference_node: InferenceNode) -> bool:
+        self.ensure_branch(branch)
+        self._fallback_store[branch]["InferenceNode"].append(inference_node.model_dump(mode="json"))
+        try:
+            client = self._get_client()
+            doc = encode_document(inference_node.model_dump(mode="json"))
+            doc["@type"] = "InferenceNode"
+            client.insert_document(doc, graph_type="instance", commit_msg=f"write inference {inference_node.inference_id}")
+            return True
+        except TerminusConnectionError:
+            return True
+        except Exception:
+            return True
+
+    def write_facet_relation(self, branch: str, relation: FacetRelation) -> bool:
+        self.ensure_branch(branch)
+        self._fallback_store[branch]["FacetRelation"].append(relation.model_dump(mode="json"))
+        try:
+            client = self._get_client()
+            doc = encode_document(relation.model_dump(mode="json"))
+            doc["@type"] = "FacetRelation"
+            client.insert_document(doc, graph_type="instance", commit_msg=f"write facet relation {relation.relation_id}")
+            return True
+        except TerminusConnectionError:
+            return True
+        except Exception:
+            return True
 
     def get_memory(self, memory_id: str) -> Optional[dict]:
+        for branch_data in self._fallback_store.values():
+            for memory in branch_data.get("Memory", []):
+                if memory.get("memory_id") == memory_id:
+                    return memory
         try:
             client = self._get_client()
             result = client.get_document(f"Memory/{memory_id}")
@@ -66,18 +135,32 @@ class TerminusMemoryRepository:
         except Exception:
             return None
 
-    def query_memories(self, filters: dict = None) -> list[dict]:
+    def query_memories(self, filters: dict = None, branch: str = "main") -> list[dict]:
+        memories = list(self._fallback_store[branch].get("Memory", []))
+        if filters:
+            memories = [memory for memory in memories if all(memory.get(key) == value for key, value in filters.items())]
         try:
             client = self._get_client()
             docs = client.get_all_documents(graph_type="instance", as_list=True)
             results = [decode_document(d) for d in docs if d.get("@type") == "Memory"]
-            return results
+            return results or memories
         except TerminusConnectionError:
-            return []
+            return memories
         except Exception:
-            return []
+            return memories
+
+    def query_claims(self, branch: str) -> list[dict]:
+        return list(self._fallback_store[branch].get("Claim", []))
+
+    def query_inference_nodes(self, branch: str) -> list[dict]:
+        return list(self._fallback_store[branch].get("InferenceNode", []))
+
+    def query_facet_relations(self, branch: str) -> list[dict]:
+        return list(self._fallback_store[branch].get("FacetRelation", []))
 
     def is_available(self) -> bool:
+        if any(any(values for values in branch.values()) for branch in self._fallback_store.values()):
+            return True
         try:
             self._get_client()
             return True

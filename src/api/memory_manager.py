@@ -56,8 +56,17 @@ class MemoryManager:
         self.claim_writer.write_many(claims)
         return claims
 
-    def retrieve_context(self, include_terminus: bool = False) -> dict[str, Any]:
-        return self.composer.retrieve(include_terminus=include_terminus)
+    def retrieve_context(
+        self,
+        include_terminus: bool = False,
+        include_speculative: bool = False,
+        inference_branch: Optional[str] = None,
+    ) -> dict[str, Any]:
+        return self.composer.retrieve(
+            include_terminus=include_terminus,
+            include_speculative=include_speculative,
+            inference_branch=inference_branch,
+        )
 
     def promote_memories(self, context: dict = None) -> list[dict]:
         claims = self.claim_writer.read_all()

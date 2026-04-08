@@ -16,11 +16,19 @@ class CandidateMemory(BaseModel):
     maturity: int = 0
     access_scope: str = "session"
     observed_at: Optional[datetime] = None
+    asserted_at: Optional[datetime] = None
+    effective_from: Optional[datetime] = None
+    effective_to: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    verified_at: Optional[datetime] = None
+    superseded_at: Optional[datetime] = None
     source_kind: str = "claim"
     source_ref: Optional[str] = None
     source_file: Optional[str] = None
     source_commit: Optional[str] = None
+    source_branch: Optional[str] = None
+    source_terminus_commit: Optional[str] = None
+    source_terminus_branch: Optional[str] = None
     session_id: Optional[str] = None
     task_id: Optional[str] = None
     claim_ids: list[str] = Field(default_factory=list)
