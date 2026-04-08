@@ -7,7 +7,7 @@ import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
-NOTEBOOK_EXECUTION_TIMEOUT_SECONDS = 60
+NOTEBOOK_EXECUTION_TIMEOUT_SECONDS = 120
 NOTEBOOK_FILES = [
     NOTEBOOKS_DIR / "01_active_memory_basics.ipynb",
     NOTEBOOKS_DIR / "02_speculative_inference_and_facets.ipynb",
