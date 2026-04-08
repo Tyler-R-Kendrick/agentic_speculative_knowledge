@@ -39,11 +39,15 @@ class TestClaimExtractor:
         assert any(t in ("prescriptive", "factual") for t in types)
 
     def test_ambiguity_flagging(self):
-        # Pronoun-containing text
         text = "The system processes data and it stores the results automatically."
         claims = self.extractor.extract(text)
-        # At least one claim should have been created
-        assert len(claims) >= 0  # may produce 0 if filtered
+        pronoun_flagged = [c for c in claims if c.ambiguity_flag]
+        # Any claim containing a pronoun should have ambiguity_flag=True
+        for claim in claims:
+            import re
+            has_pronoun = bool(re.search(r"\b(it|they|them|their|this|that|these|those|he|she|him|her)\b", claim.claim_text, re.IGNORECASE))
+            if has_pronoun:
+                assert claim.ambiguity_flag is True
 
     def test_confidence_range(self):
         text = "The agent typically processes information and stores relevant data points."

@@ -42,14 +42,8 @@ class DuplicateDetector:
 
     def deduplicate(self, claims: list[Claim]) -> list[Claim]:
         result = []
-        seen_ids: set[str] = set()
         for claim in claims:
-            is_dup = False
-            for existing in result:
-                if self.is_duplicate(claim, existing):
-                    is_dup = True
-                    break
+            is_dup = any(self.is_duplicate(claim, existing) for existing in result)
             if not is_dup:
                 result.append(claim)
-                seen_ids.add(claim.claim_id)
         return result

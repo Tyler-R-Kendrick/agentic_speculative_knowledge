@@ -6,6 +6,8 @@ from src.claims.models import Claim
 PRONOUN_RE = re.compile(r"\b(it|they|them|their|this|that|these|those|he|she|him|her)\b", re.IGNORECASE)
 QUESTION_RE = re.compile(r"^\s*\w.*\?$")
 
+MIN_WORDS = 5
+
 
 class ClaimExtractor:
     def __init__(self, llm_fn: Optional[Callable[[str], str]] = None):
@@ -52,9 +54,9 @@ class ClaimExtractor:
             s = s.strip()
             if not s:
                 continue
-            # Must have at least 5 words
+            # Must have at least MIN_WORDS words
             words = s.split()
-            if len(words) < 5:
+            if len(words) < MIN_WORDS:
                 continue
             # Not a question
             if QUESTION_RE.match(s):
@@ -97,7 +99,7 @@ class ClaimExtractor:
             if not s:
                 continue
             words = s.split()
-            if len(words) < 4:
+            if len(words) < MIN_WORDS:
                 continue
             if QUESTION_RE.match(s):
                 continue
