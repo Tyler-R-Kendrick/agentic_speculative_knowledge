@@ -15,6 +15,11 @@ NOTEBOOK_FILES = [
 ]
 
 
+def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
+    prefix = notebook_path.stem.split("_", 1)[0]
+    return NOTEBOOKS_DIR / f".demo-memory-{prefix}"
+
+
 class TestExampleNotebooks:
     def test_notebook_files_exist(self):
         for notebook_path in NOTEBOOK_FILES:
@@ -28,11 +33,7 @@ class TestExampleNotebooks:
             assert any(cell["cell_type"] == "code" for cell in notebook["cells"])
 
     def test_notebook_code_cells_execute(self):
-        demo_paths = [
-            NOTEBOOKS_DIR / ".demo-memory-01",
-            NOTEBOOKS_DIR / ".demo-memory-02",
-            NOTEBOOKS_DIR / ".demo-memory-03",
-        ]
+        demo_paths = [notebook_demo_path(notebook_path) for notebook_path in NOTEBOOK_FILES]
         try:
             for notebook_path in NOTEBOOK_FILES:
                 notebook = json.loads(notebook_path.read_text())
