@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import uuid
 
@@ -17,4 +17,4 @@ class Claim(BaseModel):
     entities: list[str] = Field(default_factory=list)
     provenance_span: Optional[str] = None
     observed_at: Optional[datetime] = None
-    extracted_at: datetime = Field(default_factory=datetime.utcnow)
+    extracted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

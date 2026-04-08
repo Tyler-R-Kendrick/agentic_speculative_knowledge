@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field
 import uuid
@@ -16,7 +16,7 @@ class CandidateMemory(BaseModel):
     maturity: int = 0
     access_scope: str = "session"
     observed_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     source_kind: str = "claim"
     source_ref: Optional[str] = None
     source_file: Optional[str] = None

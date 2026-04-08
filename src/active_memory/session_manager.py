@@ -1,5 +1,5 @@
 import pathlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from src.active_memory.models import SessionState
@@ -31,7 +31,7 @@ class SessionManager:
         session = self.load_session()
         if session is None:
             raise ValueError("No session found")
-        kwargs["last_updated_at"] = datetime.utcnow()
+        kwargs["last_updated_at"] = datetime.now(timezone.utc)
         updated = session.model_copy(update=kwargs)
         self._save(updated)
         return updated
