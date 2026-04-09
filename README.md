@@ -200,3 +200,16 @@ The repository includes a focused set of simple Python notebooks under `notebook
 - `06_manifold_mapping_for_discovery.ipynb` — demonstrates manifold-guided discovery, including inference/facet ranking metadata, relatedness, distance, and steering signals.
 
 Each notebook is designed to run locally with the repository code only. The Terminus examples intentionally point at an unused local URL so `TerminusMemoryRepository` falls back to its in-process store, which means the notebooks do not require a live TerminusDB server.
+
+## Agent skills
+
+The repository now exposes its main workflows as project agent skills under `.github/skills/`.
+
+- `/active-memory-basics`
+- `/speculative-inference-and-facets`
+- `/historical-recall`
+- `/terminus-temporal-graph-memory`
+- `/knowledge-discovery-through-facets`
+- `/manifold-mapping-for-discovery`
+
+Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebook for that workflow so agents can extend the repo without inventing parallel abstractions.
