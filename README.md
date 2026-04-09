@@ -217,9 +217,9 @@ Each skill is grounded in the existing implementation and points back to the mos
 
 ### Install skills and agents
 
-- Copy or symlink the repository skills from `skills/` into `~/skills/` so local skill discovery can find them.
+- If your local agent tooling discovers user-installed skills from `~/skills/`, copy or symlink the repository skills from `skills/` into that directory.
 - The repository also provides `.agents/skills/`, which mirrors the same skill directories as symlinks for agent tooling that expects skills inside `.agents/`.
-- If you clone the repo elsewhere, recreate the symlinks with relative targets so `.agents/skills/<name>` resolves to `../../skills/<name>`.
+- Those `.agents/skills/` links use relative targets (`../../skills/<name>`), so they stay valid if you move or reclone the repository.
 
 For a comprehensive guide with end-to-end Python examples, see [`docs/SKILLS_USAGE.md`](docs/SKILLS_USAGE.md).
 

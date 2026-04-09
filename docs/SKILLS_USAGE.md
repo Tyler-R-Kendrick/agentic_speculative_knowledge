@@ -5,7 +5,7 @@ This guide explains how to use the five agent skills exposed by the repository. 
 ## Installing skills and agents
 
 - The canonical skill definitions live in the repository root under `skills/`.
-- To make them discoverable in a local environment, copy or symlink each skill directory into `~/skills/`.
+- If your local agent tooling looks for user-installed skills in `~/skills/`, copy or symlink each skill directory there.
 - The repository also includes `.agents/skills/` symlinks that point back to `../../skills/<name>` for agent tooling that looks under `.agents/`.
 
 | Skill | Cognitive action | Primary entry point |

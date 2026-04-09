@@ -90,9 +90,10 @@ class TestAgentSkills:
 
     def test_agent_skills_symlinks_exist(self):
         assert AGENT_SKILLS_DIR.exists()
-        assert {path.name for path in AGENT_SKILLS_DIR.iterdir() if path.is_symlink()} == set(EXPECTED_SKILLS)
+        assert {path.name for path in AGENT_SKILLS_DIR.iterdir()} == set(EXPECTED_SKILLS)
         for skill_name in EXPECTED_SKILLS:
             link = AGENT_SKILLS_DIR / skill_name
+            assert link.is_symlink()
             assert link.resolve() == SKILLS_DIR / skill_name
 
     def test_skill_files_have_required_frontmatter(self):
