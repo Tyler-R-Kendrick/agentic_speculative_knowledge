@@ -11,7 +11,6 @@
   "remoteUser": "vscode",
   "overrideCommand": false,
   "postCreateCommand": "python -m pip install --upgrade pip && python -m pip install -e '.[dev]'",
-  "updateContentCommand": "python -m pip install -e '.[dev]'",
   "forwardPorts": [
     6363
   ],

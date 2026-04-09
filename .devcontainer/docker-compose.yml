@@ -18,7 +18,7 @@ services:
         condition: service_started
 
   terminusdb:
-    image: terminusdb/terminusdb-server:latest
+    image: terminusdb/terminusdb-server:v12.0.5
     restart: unless-stopped
     ports:
       - "6363:6363"
