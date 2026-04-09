@@ -203,13 +203,14 @@ Each notebook is designed to run locally with the repository code only. The Term
 
 ## Agent skills
 
-The repository now exposes its main workflows as project agent skills under `.github/skills/`.
+The repository exposes five project agent skills under `.github/skills/`. Each skill includes Python code examples that call the repository's own APIs.
 
-- `/active-memory-basics`
-- `/speculative-inference-and-facets`
-- `/historical-recall`
-- `/terminus-temporal-graph-memory`
-- `/knowledge-discovery-through-facets`
-- `/manifold-mapping-for-discovery`
+| Skill | Purpose |
+|---|---|
+| `/memorize` | Store observations, entities, tasks, and claims into active memory |
+| `/recall` | Retrieve composed context from active, trusted, and speculative layers |
+| `/infer` | Generate speculative inference candidates via the mutation pipeline |
+| `/reflect` | Persist and query long-term knowledge in the Terminus temporal graph |
+| `/discover` | Find connections between claims through facets and manifold ranking |
 
-Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebook for that workflow so agents can extend the repo without inventing parallel abstractions.
+Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebooks so agents can extend the repo without inventing parallel abstractions.
