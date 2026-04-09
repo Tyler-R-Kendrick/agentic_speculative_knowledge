@@ -1,0 +1,101 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - pyproject.toml
+      - .devcontainer/devcontainer.json
+      - .devcontainer/docker-compose.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+      - pyproject.toml
+      - .devcontainer/devcontainer.json
+      - .devcontainer/docker-compose.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      terminusdb:
+        image: terminusdb/terminusdb-server:v12.0.5
+        ports:
+          - 6363:6363
+        env:
+          TERMINUSDB_SERVER_USER: admin
+          TERMINUSDB_SERVER_PASSWORD: root
+          TERMINUSDB_LOG_LEVEL: INFO
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Install gh-aw
+        run: |
+          curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s -- --version v0.67.1
+          gh aw version
+
+      - name: Wait for TerminusDB
+        run: |
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          url = "http://127.0.0.1:6363"
+          last_error = None
+          for _ in range(30):
+            try:
+              with urllib.request.urlopen(url, timeout=2) as response:
+                if response.status < 500:
+                  print(f"TerminusDB is reachable at {url}")
+                  raise SystemExit(0)
+            except Exception as exc:
+              last_error = exc
+              time.sleep(2)
+          raise SystemExit(f"Timed out waiting for TerminusDB at {url}: {last_error}")
+          PY
+
+      - name: Configure Copilot shell environment
+        run: |
+          for file in "$HOME/.bashrc" "$HOME/.profile"; do
+            {
+              echo "export PYTHONPATH=$GITHUB_WORKSPACE"
+              echo "export TERMINUSDB_URL=http://127.0.0.1:6363"
+              echo "export TERMINUSDB_TEAM=admin"
+              echo "export TERMINUSDB_DB=agent_memory"
+              echo "export TERMINUSDB_USER=admin"
+              echo "export TERMINUSDB_PASSWORD=root"
+            } >> "$file"
+          done
+
+      - name: Verify setup
+        run: |
+          python - <<'PY'
+          import os
+          required = {
+            "PYTHONPATH": os.environ.get("GITHUB_WORKSPACE"),
+            "TERMINUSDB_URL": "http://127.0.0.1:6363",
+            "TERMINUSDB_TEAM": "admin",
+            "TERMINUSDB_DB": "agent_memory",
+            "TERMINUSDB_USER": "admin",
+            "TERMINUSDB_PASSWORD": "root",
+          }
+          for key, value in required.items():
+            print(f"{key}={value}")
+          PY
+          gh aw version
