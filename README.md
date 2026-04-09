@@ -200,3 +200,23 @@ The repository includes a focused set of simple Python notebooks under `notebook
 - `06_manifold_mapping_for_discovery.ipynb` — demonstrates manifold-guided discovery, including inference/facet ranking metadata, relatedness, distance, and steering signals.
 
 Each notebook is designed to run locally with the repository code only. The Terminus examples intentionally point at an unused local URL so `TerminusMemoryRepository` falls back to its in-process store, which means the notebooks do not require a live TerminusDB server.
+
+## Agent skills
+
+The repository exposes five project agent skills under `.github/skills/`. Each skill includes Python code examples that call the repository's own APIs.
+
+| Skill | Purpose |
+|---|---|
+| `/memorize` | Store observations, entities, tasks, and claims into active memory |
+| `/recall` | Retrieve composed context from active, trusted, and speculative layers |
+| `/infer` | Generate speculative inference candidates via the mutation pipeline |
+| `/reflect` | Persist and query long-term knowledge in the Terminus temporal graph |
+| `/discover` | Find connections between claims through facets and manifold ranking |
+
+Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebooks so agents can extend the repo without inventing parallel abstractions.
+
+For a comprehensive guide with end-to-end Python examples, see [`docs/SKILLS_USAGE.md`](docs/SKILLS_USAGE.md).
+
+## Copilot agent
+
+The repository includes a `.github/copilot-instructions.md` file that configures GitHub Copilot as a knowledge agent. The instructions teach Copilot the five-skill cognitive loop (recall → memorize → infer → reflect → discover) and ground each step in the repository's Python APIs. See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the full agent prompt.
