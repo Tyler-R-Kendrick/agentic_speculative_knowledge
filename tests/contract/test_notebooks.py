@@ -57,5 +57,8 @@ class TestExampleNotebooks:
                 )
         finally:
             for cleanup_notebook_path in NOTEBOOK_FILES:
-                demo_path = notebook_demo_path(cleanup_notebook_path)
+                try:
+                    demo_path = notebook_demo_path(cleanup_notebook_path)
+                except ValueError:
+                    continue
                 shutil.rmtree(demo_path, ignore_errors=True)
