@@ -59,7 +59,7 @@ run-name: "Daily Feature Extraction"
 
 jobs:
   activation:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
