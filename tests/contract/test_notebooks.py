@@ -19,6 +19,17 @@ def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
 
 
 class TestExampleNotebooks:
+    def test_notebook_demo_path_uses_numeric_prefix(self):
+        assert notebook_demo_path(NOTEBOOKS_DIR / "04_example.ipynb") == NOTEBOOKS_DIR / ".demo-memory-04"
+
+    def test_notebook_demo_path_rejects_invalid_filename_format(self):
+        try:
+            notebook_demo_path(NOTEBOOKS_DIR / "example.ipynb")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Expected ValueError for notebook filename without numeric prefix")
+
     def test_notebook_files_exist(self):
         assert NOTEBOOK_FILES
         for notebook_path in NOTEBOOK_FILES:
