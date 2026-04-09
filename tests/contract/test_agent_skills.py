@@ -5,7 +5,8 @@ import yaml
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-SKILLS_DIR = REPO_ROOT / ".github" / "skills"
+SKILLS_DIR = REPO_ROOT / "skills"
+AGENT_SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 SKILL_FRONTMATTER_PATTERN = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
 EXPECTED_SKILLS = {
     "memorize": {
@@ -86,6 +87,13 @@ class TestAgentSkills:
     def test_expected_skill_directories_exist(self):
         assert SKILLS_DIR.exists()
         assert {path.name for path in SKILLS_DIR.iterdir() if path.is_dir()} == set(EXPECTED_SKILLS)
+
+    def test_agent_skill_symlinks_exist(self):
+        assert AGENT_SKILLS_DIR.exists()
+        assert {path.name for path in AGENT_SKILLS_DIR.iterdir() if path.is_symlink()} == set(EXPECTED_SKILLS)
+        for skill_name in EXPECTED_SKILLS:
+            link = AGENT_SKILLS_DIR / skill_name
+            assert link.resolve() == SKILLS_DIR / skill_name
 
     def test_skill_files_have_required_frontmatter(self):
         for skill_name in EXPECTED_SKILLS:
