@@ -170,13 +170,13 @@ This project is aimed at building an agent memory stack where:
 
 ## Notebook demos
 
-The repository now includes a broader set of simple Python notebooks under `notebooks/` that showcase the main capabilities and value proposition of the system:
+The repository includes a focused set of simple Python notebooks under `notebooks/` that showcase the repo’s main capabilities and value proposition:
 
 - `01_active_memory_basics.ipynb` — starts a session, writes working memory, stores entity/task cards, extracts claims, and retrieves the active context.
 - `02_speculative_inference_and_facets.ipynb` — runs the mutation pipeline, generates speculative inference candidates, ranks them, and inspects facet relations.
 - `03_historical_recall.ipynb` — shows branch-local recall across sessions and the journal-backed history of memory mutations.
-- `04_knowledge_curation_and_normalization.ipynb` — turns noisy notes into structured claims, canonicalizes entities, removes duplicates, and scores memory candidates.
-- `05_governance_and_promotion.ipynb` — demonstrates promotion rules and trust gating between candidate memories and promotable memories.
-- `06_reliable_delivery_and_checkpoints.ipynb` — shows retryable outbox delivery, journaling, and checkpoint snapshots for resumable agent workflows.
+- `04_terminus_temporal_graph_memory.ipynb` — demonstrates persistent branch-local Terminus memory, session/inference separation, and temporal recall across graph branches.
+- `05_knowledge_discovery_through_facets.ipynb` — demonstrates knowledge discovery through ranked facet relations that connect related claims through scope and timeframe differences.
+- `06_manifold_mapping_for_discovery.ipynb` — demonstrates manifold-guided discovery, including inference/facet ranking metadata, relatedness, distance, and steering signals.
 
 Each notebook is designed to run locally with the repository code only. The Terminus examples intentionally point at an unused local URL so `TerminusMemoryRepository` falls back to its in-process store, which means the notebooks do not require a live TerminusDB server.
