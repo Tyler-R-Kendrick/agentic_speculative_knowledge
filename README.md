@@ -159,6 +159,26 @@ The repository currently implements the core shape of this architecture:
 - **Ranking is advisory:** manifold geometry influences prioritization, not truth status.
 - **Auditability matters:** every inference and ranking signal should be traceable to its source and run metadata.
 
+## Development container
+
+The repository includes a `.devcontainer/` setup for VS Code Dev Containers and GitHub Codespaces.
+
+It provisions:
+
+- a Python 3.12 workspace container
+- editable installation of the package with `.[dev]`
+- a colocated TerminusDB service on `http://terminusdb:6363`
+- forwarded access to TerminusDB on local port `6363`
+
+Default development credentials inside the container are:
+
+- user: `admin`
+- password: `root`
+- team: `admin`
+- database: `agent_memory`
+
+Open the repository in a dev container to have the Python environment and TerminusDB service configured automatically.
+
 ## Repository focus
 
 This project is aimed at building an agent memory stack where:
