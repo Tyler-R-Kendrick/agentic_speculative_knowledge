@@ -4,6 +4,8 @@ import shutil
 import subprocess
 import sys
 
+import pytest
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
@@ -23,12 +25,8 @@ class TestExampleNotebooks:
         assert notebook_demo_path(NOTEBOOKS_DIR / "04_example.ipynb") == NOTEBOOKS_DIR / ".demo-memory-04"
 
     def test_notebook_demo_path_rejects_invalid_filename_format(self):
-        try:
+        with pytest.raises(ValueError):
             notebook_demo_path(NOTEBOOKS_DIR / "example.ipynb")
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("Expected ValueError for notebook filename without numeric prefix")
 
     def test_notebook_files_exist(self):
         assert NOTEBOOK_FILES
