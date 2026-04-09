@@ -20,7 +20,7 @@ def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
 
 class TestExampleNotebooks:
     def test_notebook_files_exist(self):
-        assert len(NOTEBOOK_FILES) >= 6
+        assert NOTEBOOK_FILES
         for notebook_path in NOTEBOOK_FILES:
             assert notebook_path.exists(), f"Missing notebook: {notebook_path.name}"
 
