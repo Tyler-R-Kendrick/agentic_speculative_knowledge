@@ -94,6 +94,7 @@ class TestAgentSkills:
         for skill_name in EXPECTED_SKILLS:
             link = AGENT_SKILLS_DIR / skill_name
             assert link.is_symlink()
+            assert link.readlink() == pathlib.Path("../../skills") / skill_name
             assert link.resolve() == SKILLS_DIR / skill_name
 
     def test_skill_files_have_required_frontmatter(self):
