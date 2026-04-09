@@ -47,7 +47,9 @@ jobs:
 
       - name: Install gh-aw
         run: |
-          curl -sL https://raw.githubusercontent.com/github/gh-aw/main/install-gh-aw.sh | bash -s -- --version v0.67.1
+          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/v0.67.1/install-gh-aw.sh -o /tmp/install-gh-aw.sh
+          echo "db541e8e4f396ec8b35e485c5ba4497b7805809cc14aacff5480b3b150f9c160  /tmp/install-gh-aw.sh" | sha256sum -c -
+          bash /tmp/install-gh-aw.sh --version v0.67.1
           gh aw version
 
       - name: Wait for TerminusDB
@@ -61,7 +63,7 @@ jobs:
           for _ in range(30):
             try:
               with urllib.request.urlopen(url, timeout=2) as response:
-                if response.status < 500:
+                if 200 <= response.status < 300:
                   print(f"TerminusDB is reachable at {url}")
                   raise SystemExit(0)
             except Exception as exc:
