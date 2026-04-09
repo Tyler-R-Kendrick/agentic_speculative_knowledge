@@ -47,9 +47,10 @@ jobs:
 
       - name: Install gh-aw
         run: |
-          curl -fsSL https://raw.githubusercontent.com/github/gh-aw/v0.67.1/install-gh-aw.sh -o /tmp/install-gh-aw.sh
-          echo "db541e8e4f396ec8b35e485c5ba4497b7805809cc14aacff5480b3b150f9c160  /tmp/install-gh-aw.sh" | sha256sum -c -
-          bash /tmp/install-gh-aw.sh --version v0.67.1
+          mkdir -p "$HOME/.local/share/gh/extensions/gh-aw"
+          curl -fsSL https://github.com/github/gh-aw/releases/download/v0.67.1/linux-amd64 -o "$HOME/.local/share/gh/extensions/gh-aw/gh-aw"
+          echo "b00bbe4a0c2738ecb2d759e58e81d16a168e633ee50231fb0580a3b2b08a468b  $HOME/.local/share/gh/extensions/gh-aw/gh-aw" | sha256sum -c -
+          chmod +x "$HOME/.local/share/gh/extensions/gh-aw/gh-aw"
           gh aw version
 
       - name: Wait for TerminusDB
@@ -75,6 +76,14 @@ jobs:
 
       - name: Configure Copilot shell environment
         run: |
+          {
+            echo "PYTHONPATH=$GITHUB_WORKSPACE"
+            echo "TERMINUSDB_URL=http://127.0.0.1:6363"
+            echo "TERMINUSDB_TEAM=admin"
+            echo "TERMINUSDB_DB=agent_memory"
+            echo "TERMINUSDB_USER=admin"
+            echo "TERMINUSDB_PASSWORD=root"
+          } >> "$GITHUB_ENV"
           for file in "$HOME/.bashrc" "$HOME/.profile"; do
             {
               echo "export PYTHONPATH=$GITHUB_WORKSPACE"
@@ -91,12 +100,12 @@ jobs:
           python - <<'PY'
           import os
           required = {
-            "PYTHONPATH": os.environ.get("GITHUB_WORKSPACE"),
-            "TERMINUSDB_URL": "http://127.0.0.1:6363",
-            "TERMINUSDB_TEAM": "admin",
-            "TERMINUSDB_DB": "agent_memory",
-            "TERMINUSDB_USER": "admin",
-            "TERMINUSDB_PASSWORD": "root",
+            "PYTHONPATH": os.environ["PYTHONPATH"],
+            "TERMINUSDB_URL": os.environ["TERMINUSDB_URL"],
+            "TERMINUSDB_TEAM": os.environ["TERMINUSDB_TEAM"],
+            "TERMINUSDB_DB": os.environ["TERMINUSDB_DB"],
+            "TERMINUSDB_USER": os.environ["TERMINUSDB_USER"],
+            "TERMINUSDB_PASSWORD": os.environ["TERMINUSDB_PASSWORD"],
           }
           for key, value in required.items():
             print(f"{key}={value}")
