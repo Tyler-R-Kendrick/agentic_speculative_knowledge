@@ -1,0 +1,34 @@
+services:
+  workspace:
+    image: mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/${localWorkspaceFolderBasename}:cached
+      - pip-cache:/home/vscode/.cache/pip
+    environment:
+      PYTHONPATH: /workspaces/${localWorkspaceFolderBasename}
+      PIP_CACHE_DIR: /home/vscode/.cache/pip
+      TERMINUSDB_URL: http://terminusdb:6363
+      TERMINUSDB_TEAM: admin
+      TERMINUSDB_DB: agent_memory
+      TERMINUSDB_USER: admin
+      TERMINUSDB_PASSWORD: root
+    depends_on:
+      terminusdb:
+        condition: service_started
+
+  terminusdb:
+    image: terminusdb/terminusdb-server:latest
+    restart: unless-stopped
+    ports:
+      - "6363:6363"
+    environment:
+      TERMINUSDB_SERVER_USER: admin
+      TERMINUSDB_SERVER_PASSWORD: root
+      TERMINUSDB_LOG_LEVEL: INFO
+    volumes:
+      - terminusdb-data:/app/terminusdb/storage
+
+volumes:
+  pip-cache:
+  terminusdb-data:
