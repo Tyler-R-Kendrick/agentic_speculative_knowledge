@@ -8,11 +8,7 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 NOTEBOOKS_DIR = REPO_ROOT / "notebooks"
 NOTEBOOK_EXECUTION_TIMEOUT_SECONDS = 120
-NOTEBOOK_FILES = [
-    NOTEBOOKS_DIR / "01_active_memory_basics.ipynb",
-    NOTEBOOKS_DIR / "02_speculative_inference_and_facets.ipynb",
-    NOTEBOOKS_DIR / "03_historical_recall.ipynb",
-]
+NOTEBOOK_FILES = sorted(NOTEBOOKS_DIR.glob("*.ipynb"))
 
 
 def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
@@ -24,6 +20,7 @@ def notebook_demo_path(notebook_path: pathlib.Path) -> pathlib.Path:
 
 class TestExampleNotebooks:
     def test_notebook_files_exist(self):
+        assert len(NOTEBOOK_FILES) >= 6
         for notebook_path in NOTEBOOK_FILES:
             assert notebook_path.exists(), f"Missing notebook: {notebook_path.name}"
 
