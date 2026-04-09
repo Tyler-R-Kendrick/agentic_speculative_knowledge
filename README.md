@@ -214,3 +214,9 @@ The repository exposes five project agent skills under `.github/skills/`. Each s
 | `/discover` | Find connections between claims through facets and manifold ranking |
 
 Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebooks so agents can extend the repo without inventing parallel abstractions.
+
+For a comprehensive guide with end-to-end Python examples, see [`docs/SKILLS_USAGE.md`](docs/SKILLS_USAGE.md).
+
+## Copilot agent
+
+The repository includes a `.github/copilot-instructions.md` file that configures GitHub Copilot as a knowledge agent. The instructions teach Copilot the five-skill cognitive loop (recall → memorize → infer → reflect → discover) and ground each step in the repository's Python APIs. See [`.github/copilot-instructions.md`](.github/copilot-instructions.md) for the full agent prompt.
