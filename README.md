@@ -203,7 +203,7 @@ Each notebook is designed to run locally with the repository code only. The Term
 
 ## Agent skills
 
-The repository exposes five project agent skills under `.github/skills/`. Each skill includes Python code examples that call the repository's own APIs.
+The repository exposes five project agent skills under `skills/`. Each skill includes Python code examples that call the repository's own APIs.
 
 | Skill | Purpose |
 |---|---|
@@ -214,6 +214,12 @@ The repository exposes five project agent skills under `.github/skills/`. Each s
 | `/discover` | Find connections between claims through facets and manifold ranking |
 
 Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebooks so agents can extend the repo without inventing parallel abstractions.
+
+### Install skills and agents
+
+- If your local agent tooling discovers user-installed skills from `~/skills/`, copy or symlink the repository skills from `skills/` into that directory.
+- The repository also provides `.agents/skills/`, which mirrors the same skill directories as symlinks for agent tooling that expects skills inside `.agents/`.
+- Those `.agents/skills/` links use relative targets (`../../skills/<name>`), so they stay valid if you move or reclone the repository.
 
 For a comprehensive guide with end-to-end Python examples, see [`docs/SKILLS_USAGE.md`](docs/SKILLS_USAGE.md).
 

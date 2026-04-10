@@ -2,6 +2,12 @@
 
 This guide explains how to use the five agent skills exposed by the repository. Each skill maps to a specific cognitive action and calls the Python APIs implemented in `src/`.
 
+## Installing skills and agents
+
+- The canonical skill definitions live in the repository root under `skills/`.
+- If your local agent tooling looks for user-installed skills in `~/skills/`, copy or symlink each skill directory there.
+- The repository also includes `.agents/skills/` symlinks that point back to `../../skills/<name>` for agent tooling that looks under `.agents/`.
+
 | Skill | Cognitive action | Primary entry point |
 |---|---|---|
 | **memorize** | Store new knowledge | `MemoryManager` |
@@ -318,4 +324,4 @@ mgr.end_session()
 | 4 | **reflect** | Persist trusted knowledge to the temporal graph |
 | 5 | **discover** | Find connections through facets and geometric ranking |
 
-See the individual skill files under `.github/skills/` for detailed API tables and working rules.
+See the individual skill files under `skills/` or the mirrored `.agents/skills/` symlinks for detailed API tables and working rules.
