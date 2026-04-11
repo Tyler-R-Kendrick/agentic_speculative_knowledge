@@ -139,9 +139,6 @@ mgr = MemoryManager(root_dir=root)
 session = mgr.start_session(current_goal="<goal>")
 
 observation = "<observation text>"
-mgr.add_working_item(item_type="observation", content=observation)
-mgr.extract_claims(text=observation, source_ref="<ref>")
-
 repo = TerminusMemoryRepository(url="http://localhost:6363")
 pipeline = MutationPipeline(
     root,

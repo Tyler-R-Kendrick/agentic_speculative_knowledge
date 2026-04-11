@@ -278,9 +278,6 @@ mgr = MemoryManager(root_dir=root)
 session = mgr.start_session(current_goal="speculate about auth failures")
 
 observation = "The auth service returned 401 after a certificate rotation."
-mgr.add_working_item(item_type="observation", content=observation)
-claims = mgr.extract_claims(text=observation, source_ref="incident-42")
-
 repo = TerminusMemoryRepository(url="http://localhost:6363")
 ranker = ManifoldRankingService()
 pipeline = MutationPipeline(
