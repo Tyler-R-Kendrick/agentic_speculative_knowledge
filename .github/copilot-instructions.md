@@ -139,6 +139,7 @@ mgr = MemoryManager(root_dir=root)
 session = mgr.start_session(current_goal="<goal>")
 
 observation = "<observation text>"
+baseline = mgr.retrieve_context(include_terminus=False)
 repo = TerminusMemoryRepository(url="http://localhost:6363")
 pipeline = MutationPipeline(
     root,
@@ -158,6 +159,7 @@ context = composer.retrieve(
     include_speculative=True,
     inference_branch=result.inference_branch,
 )
+print(len(baseline["claims"]), len(context["claims"]))
 ```
 
 When to use: after inference and discovery, when you need to present speculative candidates with enough traceability that another agent can critique the reasoning.

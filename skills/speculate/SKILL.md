@@ -188,7 +188,7 @@ For nearby facet relations, include:
 | Class | Method | Purpose |
 |---|---|---|
 | `MemoryManager` | `start_session()` / `end_session()` | Session lifecycle around speculative work |
-| `MemoryManager` | `retrieve_context()` | Convenient recall wrapper before or after speculation |
+| `MemoryManager` | `retrieve_context(include_terminus=False, include_speculative=False, inference_branch=None)` | High-level wrapper over `RetrievalComposer.retrieve()` for recall before or after speculation |
 | `MutationPipeline` | `run()` | Single entry point for write → extract → persist → infer → rank |
 | `RetrievalComposer` | `retrieve()` | Compose active, trusted, and speculative layers into one packet |
 | `ManifoldRankingService` | `rank_inference_candidates()` / `rank_facet_candidates()` | Supply review-priority metadata |
