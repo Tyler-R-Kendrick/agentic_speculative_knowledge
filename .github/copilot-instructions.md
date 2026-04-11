@@ -139,6 +139,7 @@ mgr = MemoryManager(root_dir=root)
 session = mgr.start_session(current_goal="<goal>")
 
 observation = "<observation text>"
+# Capture baseline context so you can compare what the speculative run added.
 baseline = mgr.retrieve_context(include_terminus=False)
 repo = TerminusMemoryRepository(url="http://localhost:6363")
 pipeline = MutationPipeline(

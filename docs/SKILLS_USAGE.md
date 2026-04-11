@@ -380,7 +380,7 @@ for node in context["speculative_inference"]:
         {
             "candidate": node["text"],
             "supports": [
-                claim_index.get(claim_id, {"claim_text": claim_id})["claim_text"]
+                claim_index.get(claim_id, {"claim_text": f"<missing claim: {claim_id}>"})["claim_text"]
                 for claim_id in node.get("generated_from_nodes", [])
             ],
             "assumptions": node.get("assumptions", []),

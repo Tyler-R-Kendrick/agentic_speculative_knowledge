@@ -25,7 +25,7 @@ Do **not** use this skill to promote conclusions to trusted memory. Speculation 
 
 ## Repository-grounded workflow
 
-1. **Recall first** with `MemoryManager.retrieve_context()` (the high-level wrapper over composed retrieval) or `RetrievalComposer.retrieve()`.
+1. **Recall first** with `MemoryManager.retrieve_context()` (a convenience wrapper that internally uses `RetrievalComposer`) or `RetrievalComposer.retrieve()` directly.
 2. **Start a session** with `MemoryManager.start_session()`.
 3. **Run one fresh observation through `MutationPipeline.run()`**.  
    This already writes the working item as pipeline step 1, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
@@ -179,7 +179,7 @@ For nearby facet relations, include:
   - `inference_branch=...`
 - `TerminusMemoryRepository` falls back to an in-process store when Terminus is unreachable, so the same retrieval flow still works in tests and local no-Terminus runs.
 - The current rule-based generator uses `generated_from_nodes` / `generated_from_edges` as reliable provenance. The `supports` field may be empty.
-- The current facet generator only emits relations between **adjacent extracted claims that share extracted entities**. If you want facet output, use multi-sentence observations with a shared capitalized entity.
+- The current facet generator only emits relations between **sequentially adjacent claims in the extracted claim list that share extracted entities**. If you want facet output, use multi-sentence observations with a shared capitalized entity.
 - If manifold ranking fails, inference nodes are still written, but ranking fields may be `None` and `result.ranked_inference_candidates` may stay `0`. Treat provenance-bearing candidates as reviewable even without scores.
 - Ranking requires an `inference/*` or `verification/*` branch. Let the pipeline create the `inference/*` branch for you.
 
