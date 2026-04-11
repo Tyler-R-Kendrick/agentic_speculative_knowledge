@@ -25,10 +25,10 @@ Do **not** use this skill to promote conclusions to trusted memory. Speculation 
 
 ## Repository-grounded workflow
 
-1. **Recall first** with `MemoryManager.retrieve_context()` or `RetrievalComposer.retrieve()`.
+1. **Recall first** with `MemoryManager.retrieve_context()` (the high-level wrapper over composed retrieval) or `RetrievalComposer.retrieve()`.
 2. **Start a session** with `MemoryManager.start_session()`.
 3. **Run one fresh observation through `MutationPipeline.run()`**.  
-   This already writes the working item, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
+   This already writes the working item as pipeline step 1, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
    Do **not** call `add_working_item()` for the same observation first unless you intentionally want duplicate active-memory entries.
 4. **Retrieve speculative results** with:
    - `include_terminus=True`
@@ -61,6 +61,7 @@ observation = (
     "The API for Auth started returning 401 errors."
 )
 
+# Capture pre-speculation context so the final packet can show what changed.
 baseline = mgr.retrieve_context(include_terminus=False)
 
 repo = TerminusMemoryRepository(url="http://localhost:6363")
