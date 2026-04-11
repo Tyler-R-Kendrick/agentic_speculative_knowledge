@@ -67,6 +67,7 @@ from datetime import date
 from src.api.memory_manager import MemoryManager
 from src.retrieval.composer import RetrievalComposer
 from src.journal.appender import JournalAppender
+from src.terminus.adapter import TerminusMemoryRepository
 
 root = pathlib.Path(".agent-memory")
 mgr = MemoryManager(root_dir=root)
@@ -74,8 +75,12 @@ mgr = MemoryManager(root_dir=root)
 # Active-only context
 context = mgr.retrieve_context(include_terminus=False)
 
-# Full context with Terminus and speculative layers
-full = mgr.retrieve_context(
+# Full context with Terminus and speculative layers.
+# In fallback mode, share the same TerminusMemoryRepository instance between
+# pipeline writes and retrieval reads.
+repo = TerminusMemoryRepository(url="http://localhost:6363")
+composer = RetrievalComposer(root, terminus_repo=repo)
+full = composer.retrieve(
     include_terminus=True,
     include_speculative=True,
     inference_branch="inference/sess-1",
@@ -338,6 +343,7 @@ The six skills form a cognitive loop. A typical end-to-end session looks like th
 import pathlib
 from src.api.memory_manager import MemoryManager
 from src.persistence.pipeline import MutationPipeline
+from src.retrieval.composer import RetrievalComposer
 from src.terminus.adapter import TerminusMemoryRepository
 from src.manifold_sidecar import ManifoldRankingService
 from src.active_memory.models import WorkingItem
@@ -361,7 +367,9 @@ item = WorkingItem(item_type="observation", content="Auth returned 401.", sessio
 result = pipeline.run(item, session_id=session.session_id)
 
 # 3. RECALL — retrieve composed context
-context = mgr.retrieve_context(
+# Share the same repo instance so fallback-mode speculative data is visible.
+composer = RetrievalComposer(root, terminus_repo=repo)
+context = composer.retrieve(
     include_terminus=True, include_speculative=True,
     inference_branch=result.inference_branch,
 )

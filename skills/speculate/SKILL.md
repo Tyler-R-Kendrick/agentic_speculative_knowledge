@@ -30,7 +30,7 @@ Do **not** use this skill to promote conclusions to trusted memory. Speculation 
 3. **Run one fresh observation through `MutationPipeline.run()`**.  
    This already appends the working item to the active-memory working set as pipeline step 1, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
    Do **not** call `add_working_item()` for the same observation first unless you intentionally want duplicate active-memory entries.
-4. **Retrieve speculative results** with:
+4. **Retrieve speculative results** with a shared `RetrievalComposer(root, terminus_repo=repo)` in fallback mode, or any `RetrievalComposer` backed by a live TerminusDB, using:
    - `include_terminus=True`
    - `include_speculative=True`
    - `inference_branch=result.inference_branch`
@@ -177,7 +177,7 @@ For nearby facet relations, include:
   - `include_terminus=True`
   - `include_speculative=True`
   - `inference_branch=...`
-- `TerminusMemoryRepository` falls back to an in-process store when Terminus is unreachable, so the same retrieval flow still works in tests and local no-Terminus runs.
+- `TerminusMemoryRepository` falls back to an in-process store when Terminus is unreachable. In that mode, speculative retrieval only works if the pipeline writes and retrieval reads share the same `TerminusMemoryRepository` instance, such as `RetrievalComposer(root, terminus_repo=repo)`.
 - The current rule-based generator uses `generated_from_nodes` as the most useful high-level provenance for critique packets; lower-level `generated_from_edges` provenance is also available when you need it. The `supports` field may be empty.
 - The current facet generator only emits relations between **sequentially adjacent claims in the extracted claim list that share extracted entities**. If you want facet output, use multi-sentence observations with a shared capitalized entity.
 - If manifold ranking fails, inference nodes are still written, but ranking fields may be `None` and `result.ranked_inference_candidates` may stay `0`. Treat provenance-bearing candidates as reviewable even without scores.
@@ -188,7 +188,7 @@ For nearby facet relations, include:
 | Class | Method | Purpose |
 |---|---|---|
 | `MemoryManager` | `start_session()` / `end_session()` | Session lifecycle around speculative work |
-| `MemoryManager` | `retrieve_context(include_terminus=False, include_speculative=False, inference_branch=None)` | High-level wrapper over `RetrievalComposer.retrieve()` for recall before or after speculation |
+| `MemoryManager` | `retrieve_context(include_terminus=False, include_speculative=False, inference_branch=None)` | High-level wrapper over `RetrievalComposer.retrieve()` for active/trusted recall; use `RetrievalComposer(root, terminus_repo=repo)` for speculative packet assembly in fallback mode |
 | `MutationPipeline` | `run()` | Single entry point for write → extract → persist → infer → rank |
 | `RetrievalComposer` | `retrieve()` | Compose active, trusted, and speculative layers into one packet |
 | `ManifoldRankingService` | `rank_inference_candidates()` / `rank_facet_candidates()` | Supply review-priority metadata |
@@ -217,5 +217,5 @@ For nearby facet relations, include:
 2. Prefer `MutationPipeline.run()` over hand-stitching pipeline steps.
 3. Keep speculative output on `inference/*` branches until review explicitly chooses reflection.
 4. Always show provenance, assumptions, and ranking/uncertainty metadata in the critique packet.
-5. Use `RetrievalComposer` or `MemoryManager.retrieve_context()` to assemble packets instead of manually merging files and graph queries.
+5. Use `RetrievalComposer(root, terminus_repo=repo)` to assemble speculative packets in fallback mode, or `MemoryManager.retrieve_context()` / `RetrievalComposer` for active and trusted recall when a shared repo is not required.
 6. Validate any code changes with `python -m pytest`; for behavior checks, `tests/integration/test_inference_flow.py` is the most directly relevant.
