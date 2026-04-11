@@ -28,7 +28,7 @@ Do **not** use this skill to promote conclusions to trusted memory. Speculation 
 1. **Recall first** with `MemoryManager.retrieve_context()` (a convenience wrapper that internally uses `RetrievalComposer`) or `RetrievalComposer.retrieve()` directly.
 2. **Start a session** with `MemoryManager.start_session()`.
 3. **Run one fresh observation through `MutationPipeline.run()`**.  
-   This already writes the working item as pipeline step 1, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
+   This already appends the working item to the active-memory working set as pipeline step 1, appends a journal event, extracts claims, optionally writes trusted memories, and generates speculative outputs.  
    Do **not** call `add_working_item()` for the same observation first unless you intentionally want duplicate active-memory entries.
 4. **Retrieve speculative results** with:
    - `include_terminus=True`
@@ -104,7 +104,7 @@ for node in context["speculative_inference"]:
     critique_packet["candidates"].append(
         {
             "candidate": node["text"],
-            "provenance_claim_ids": node.get("generated_from_nodes", []),
+            "provenance_node_ids": node.get("generated_from_nodes", []),
             "provenance_claims": [
                 claims_by_id[claim_id]["claim_text"]
                 for claim_id in node.get("generated_from_nodes", [])
@@ -178,7 +178,7 @@ For nearby facet relations, include:
   - `include_speculative=True`
   - `inference_branch=...`
 - `TerminusMemoryRepository` falls back to an in-process store when Terminus is unreachable, so the same retrieval flow still works in tests and local no-Terminus runs.
-- The current rule-based generator uses `generated_from_nodes` / `generated_from_edges` as reliable provenance. The `supports` field may be empty.
+- The current rule-based generator uses `generated_from_nodes` as the most useful high-level provenance for critique packets; lower-level `generated_from_edges` provenance is also available when you need it. The `supports` field may be empty.
 - The current facet generator only emits relations between **sequentially adjacent claims in the extracted claim list that share extracted entities**. If you want facet output, use multi-sentence observations with a shared capitalized entity.
 - If manifold ranking fails, inference nodes are still written, but ranking fields may be `None` and `result.ranked_inference_candidates` may stay `0`. Treat provenance-bearing candidates as reviewable even without scores.
 - Ranking requires an `inference/*` or `verification/*` branch. Let the pipeline create the `inference/*` branch for you.
