@@ -205,6 +205,10 @@ For nearby facet relations, include:
 - `tests/integration/test_inference_flow.py` — inference persistence and retrieval behavior
 - `tests/integration/test_retrieval.py` — base retrieval behavior
 - `docs/SKILLS_USAGE.md` — end-to-end skill usage guide
+- `notebooks/02_speculative_inference_and_facets.ipynb` — speculative pipeline walkthrough
+- `notebooks/03_historical_recall.ipynb` — retrieval walkthrough
+- `notebooks/05_knowledge_discovery_through_facets.ipynb` — facet discovery walkthrough
+- `notebooks/06_manifold_mapping_for_discovery.ipynb` — manifold ranking walkthrough
 
 ## Rules
 
