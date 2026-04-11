@@ -1,7 +1,7 @@
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-SKILLS = ["memorize", "recall", "discover", "reflect", "infer"]
+SKILLS = ["memorize", "recall", "discover", "reflect", "infer", "speculate"]
 
 
 class TestSkillsUsageDoc:
@@ -55,4 +55,4 @@ class TestCopilotInstructions:
         content = path.read_text()
         # Instructions should describe the cognitive loop
         assert "memorize" in content and "recall" in content and "infer" in content
-        assert "reflect" in content and "discover" in content
+        assert "reflect" in content and "discover" in content and "speculate" in content

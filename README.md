@@ -203,7 +203,7 @@ Each notebook is designed to run locally with the repository code only. The Term
 
 ## Agent skills
 
-The repository exposes five project agent skills under `skills/`. Each skill includes Python code examples that call the repository's own APIs.
+The repository exposes six project agent skills under `skills/`. Each skill includes Python code examples that call the repository's own APIs.
 
 | Skill | Purpose |
 |---|---|
@@ -212,6 +212,7 @@ The repository exposes five project agent skills under `skills/`. Each skill inc
 | `/infer` | Generate speculative inference candidates via the mutation pipeline |
 | `/reflect` | Persist and query long-term knowledge in the Terminus temporal graph |
 | `/discover` | Find connections between claims through facets and manifold ranking |
+| `/speculate` | Orchestrate the other skills into critique-ready speculative packets with reasoning traces and justifications |
 
 Each skill is grounded in the existing implementation and points back to the most relevant source files, tests, and demo notebooks so agents can extend the repo without inventing parallel abstractions.
 
