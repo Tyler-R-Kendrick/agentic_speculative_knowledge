@@ -50,12 +50,16 @@ if command -v gh >/dev/null 2>&1 && gh extension list 2>/dev/null | awk '{print 
   cd "$repo_root"
   if [[ -f ".github/workflows/train-prompt.lock.yml" ]]; then
     echo "==> Updating train-prompt workflow via gh aw update..."
-    gh aw update train-prompt || true
+    if ! gh aw update train-prompt; then
+      echo "    WARNING: gh aw update train-prompt failed (no changes or auth issue)" >&2
+    fi
   else
     echo "==> Installing train-prompt workflow via gh aw add..."
-    gh aw add \
-      "Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md" \
-      --name train-prompt || true
+    if ! gh aw add \
+        "Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md" \
+        --name train-prompt; then
+      echo "    WARNING: gh aw add failed — GH_TOKEN may not be set or auth is required" >&2
+    fi
   fi
 fi
 
