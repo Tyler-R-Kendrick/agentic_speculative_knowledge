@@ -1,0 +1,99 @@
+name: Sync from Upstream (copilot-auto-training)
+
+# Keeps this repository in sync with the copilot-auto-training workflow files,
+# MCP server implementation, and agent definitions.  Any diff triggers a pull
+# request so maintainers can review changes before they land.
+#
+# Files controlled by this sync are listed in .github/scripts/sync-upstream.sh.
+# Repo-specific files (pyproject.toml, repo-runtime-context.md, devcontainer,
+# copilot-setup-steps.yml) are NOT synced and must be maintained manually.
+
+on:
+  schedule:
+    # Run daily at 03:17 UTC
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: "Branch/tag/SHA to sync from (default: main)"
+        required: false
+        default: "main"
+      dry_run:
+        description: "Dry run — report changes without writing files"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UPSTREAM_REPO: Tyler-R-Kendrick/copilot-auto-training
+      UPSTREAM_REF: ${{ github.event.inputs.upstream_ref || 'main' }}
+      DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a PAT so the resulting branch/PR can trigger CI
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run sync script
+        id: sync
+        run: |
+          bash .github/scripts/sync-upstream.sh
+
+      - name: Check for changes
+        id: changed
+        run: |
+          git diff --name-only > /tmp/git-changed.txt
+          count=$(wc -l < /tmp/git-changed.txt | tr -d ' ')
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [[ "$count" -gt 0 ]]; then
+            echo "Changed files:"
+            cat /tmp/git-changed.txt
+          else
+            echo "No changes detected."
+          fi
+
+      - name: Open pull request
+        if: steps.changed.outputs.count != '0' && env.DRY_RUN == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="chore/sync-upstream-$(date +%Y%m%d-%H%M%S)"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore: sync files from ${UPSTREAM_REPO}@${UPSTREAM_REF}"
+          git push origin "$BRANCH"
+
+          BODY="## Upstream sync from \`${UPSTREAM_REPO}\` @ \`${UPSTREAM_REF}\`
+
+          This PR was opened automatically by the **Sync from Upstream** workflow.
+          It reflects changes in the upstream repository since the last sync.
+
+          ### Changed files
+          $(cat /tmp/git-changed.txt | sed 's/^/- /')
+
+          ### Review checklist
+          - [ ] Confirm each changed file is an expected upstream update
+          - [ ] Check that \`tools/agent-skills-mcp/pyproject.toml\` and
+                \`.github/workflows/shared/repo-runtime-context.md\` are **not** in this PR
+                (they are repo-specific and must not be overwritten by the sync)
+          - [ ] Run \`uv lock --directory tools/agent-skills-mcp\` if \`server.py\` or
+                \`agent_skills_mcp.py\` changed"
+
+          gh pr create \
+            --title "chore: sync from ${UPSTREAM_REPO}@${UPSTREAM_REF}" \
+            --body "$BODY" \
+            --label "upstream-sync" \
+            --head "$BRANCH"
