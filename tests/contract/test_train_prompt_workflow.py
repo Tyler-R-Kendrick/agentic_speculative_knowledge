@@ -1,133 +1,221 @@
 """
 Contract tests for the train-prompt workflow integration.
 
-Tests verify:
-  - Required files exist (workflow, MCP server, agents, shared fragments)
-  - The sync script exists and is executable
-  - The MCP server pyproject.toml is repo-specific (no trainer-skill bundling)
-  - The MCP server source is importable
-  - act is available and can perform a dry-run of the sync workflow
+Validates that the integration is structured correctly — i.e. that no
+manually-copied upstream files exist in the repository, that all automation
+uses the proper tooling (gh aw, sparse git clone), and that repo-specific
+files are in the right shape.
+
+These tests deliberately do NOT check for the presence of files that are
+fetched at runtime (e.g. train-prompt.lock.yml, .github/agents/,
+tools/agent-skills-mcp/agent_skills_mcp.py).  Those files are generated or
+fetched by post-start.sh / sync-from-upstream.yml and are gitignored.
 """
 from __future__ import annotations
 
-import importlib.util
-import os
 import pathlib
+import re
 import shutil
 import stat
 import subprocess
-import sys
 
 import pytest
-import yaml
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 
+
 # ---------------------------------------------------------------------------
-# Required file presence
+# Helper
 # ---------------------------------------------------------------------------
 
-SYNCED_BY_GH_AW = [
+def _gitignored(rel_path: str) -> bool:
+    """Return True if the path is gitignored in this repository."""
+    result = subprocess.run(
+        ["git", "check-ignore", "--quiet", rel_path],
+        cwd=REPO_ROOT,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+# ---------------------------------------------------------------------------
+# Runtime-fetched files must be gitignored (never committed as copies)
+# ---------------------------------------------------------------------------
+
+RUNTIME_FETCHED = [
+    # Managed by gh aw add / gh aw update
     ".github/workflows/train-prompt.lock.yml",
     ".github/workflows/train-prompt.md",
     ".github/workflows/shared/agent-skills-runtime.md",
     ".github/workflows/shared/trainer-loop-contract.md",
-    ".github/agents/trainer.agent.md",
-    ".github/agents/researcher.agent.md",
-    ".github/agents/engineer.agent.md",
-    ".github/agents/judge.agent.md",
-    ".github/agents/teacher.agent.md",
-    ".github/agents/student.agent.md",
-    ".github/agents/adversary.agent.md",
-    ".github/agents/conservator.agent.md",
-]
-
-MCP_SERVER_FILES = [
+    # MCP server source — sparse-checked-out by post-start.sh
     "tools/agent-skills-mcp/agent_skills_mcp.py",
     "tools/agent-skills-mcp/server.py",
-    "tools/agent-skills-mcp/pyproject.toml",
     "tools/agent-skills-mcp/uv.lock",
 ]
 
-REPO_SPECIFIC_FILES = [
-    ".github/workflows/shared/repo-runtime-context.md",
-    ".github/scripts/sync-upstream.sh",
-    ".github/workflows/sync-from-upstream.yml",
-    ".devcontainer/post-start.sh",
-]
 
-
-@pytest.mark.parametrize("rel_path", SYNCED_BY_GH_AW)
-def test_gh_aw_managed_file_exists(rel_path: str) -> None:
-    """Files that gh aw add/update manages must be committed."""
-    assert (REPO_ROOT / rel_path).is_file(), (
-        f"{rel_path} is missing — run: "
-        f"gh aw add Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md "
-        f"--name train-prompt"
+@pytest.mark.parametrize("rel_path", RUNTIME_FETCHED)
+def test_runtime_fetched_file_is_gitignored(rel_path: str) -> None:
+    """Runtime-fetched files must be gitignored so they can never be
+    accidentally committed as manually-synced copies."""
+    assert _gitignored(rel_path), (
+        f"{rel_path} is NOT gitignored.\n"
+        "Files fetched at runtime (by post-start.sh or gh aw) must be "
+        "listed in .gitignore so they are never committed as manual copies."
     )
 
 
-@pytest.mark.parametrize("rel_path", MCP_SERVER_FILES)
-def test_mcp_server_file_exists(rel_path: str) -> None:
-    """MCP server files must exist in the repository."""
-    assert (REPO_ROOT / rel_path).is_file(), f"{rel_path} is missing"
+@pytest.mark.parametrize("rel_path", RUNTIME_FETCHED)
+def test_runtime_fetched_file_not_tracked(rel_path: str) -> None:
+    """Runtime-fetched files must not be tracked by git."""
+    result = subprocess.run(
+        ["git", "ls-files", rel_path],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "", (
+        f"{rel_path} is tracked by git — it must be removed.\n"
+        "Run: git rm --cached {rel_path}"
+    )
 
 
-@pytest.mark.parametrize("rel_path", REPO_SPECIFIC_FILES)
+# ---------------------------------------------------------------------------
+# .github/agents/ must be entirely gitignored (no manually-committed agents)
+# ---------------------------------------------------------------------------
+
+def test_github_agents_dir_is_gitignored() -> None:
+    """The .github/agents/ directory must be gitignored so agent files
+    generated by `gh aw add` are never committed as static copies."""
+    assert _gitignored(".github/agents/trainer.agent.md"), (
+        ".github/agents/ is not gitignored.\n"
+        "Agent files are managed by `gh aw add`/`gh aw update` and must "
+        "not be committed as manually-synced copies."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Repo-specific files must exist
+# ---------------------------------------------------------------------------
+
+REPO_SPECIFIC = [
+    ".github/workflows/sync-from-upstream.yml",
+    ".github/workflows/copilot-setup-steps.yml",
+    ".github/workflows/shared/repo-runtime-context.md",
+    ".devcontainer/post-start.sh",
+    ".devcontainer/devcontainer.json",
+    ".devcontainer/docker-compose.yml",
+    "tools/agent-skills-mcp/pyproject.toml",
+]
+
+
+@pytest.mark.parametrize("rel_path", REPO_SPECIFIC)
 def test_repo_specific_file_exists(rel_path: str) -> None:
-    """Repository-specific files must exist and NOT be synced from upstream."""
-    assert (REPO_ROOT / rel_path).is_file(), f"{rel_path} is missing"
+    """Repo-specific files must be committed and present."""
+    assert (REPO_ROOT / rel_path).is_file(), (
+        f"{rel_path} is missing — it is repo-specific and must be committed."
+    )
 
 
 # ---------------------------------------------------------------------------
-# Sync script
+# No manual sync script
 # ---------------------------------------------------------------------------
 
-def test_sync_script_is_executable() -> None:
-    script = REPO_ROOT / ".github" / "scripts" / "sync-upstream.sh"
-    assert script.is_file()
-    mode = script.stat().st_mode
-    assert mode & stat.S_IXUSR, "sync-upstream.sh must be executable"
-
-
-def test_sync_script_mcp_files_only() -> None:
-    """The sync script's SYNC_MAP must only contain MCP server source files.
-    Workflow files and agents are managed by `gh aw update train-prompt`."""
-    script = (REPO_ROOT / ".github" / "scripts" / "sync-upstream.sh").read_text()
-
-    # Extract only the SYNC_MAP array block (between 'declare -a SYNC_MAP=(' and the closing ')')
-    import re
-    match = re.search(r"declare -a SYNC_MAP=\((.+?)\)", script, re.DOTALL)
-    assert match, "Could not find SYNC_MAP array in sync-upstream.sh"
-    sync_map_block = match.group(1)
-
-    # Workflow / agent paths must not appear inside the SYNC_MAP entries
-    assert "train-prompt.lock.yml" not in sync_map_block
-    assert ".github/agents/trainer" not in sync_map_block
-    assert "agent-skills-runtime.md" not in sync_map_block
-
-    # MCP files must still be synced
-    assert "agent_skills_mcp.py" in sync_map_block
-    assert "server.py" in sync_map_block
-
-
-def test_sync_workflow_uses_gh_aw_update() -> None:
-    """The sync workflow must delegate workflow management to gh aw, not curl."""
-    workflow = (REPO_ROOT / ".github" / "workflows" / "sync-from-upstream.yml").read_text()
-    assert "gh aw update" in workflow or "gh aw add" in workflow
-    # Must NOT directly curl the lock file
-    assert "train-prompt.lock.yml" not in workflow or "gh aw" in workflow
+def test_no_manual_sync_script() -> None:
+    """There must be no script that manually downloads/copies upstream files.
+    Use `gh aw update train-prompt` instead."""
+    assert not (REPO_ROOT / ".github" / "scripts" / "sync-upstream.sh").exists(), (
+        ".github/scripts/sync-upstream.sh must not exist.\n"
+        "Use `gh aw update train-prompt` in sync-from-upstream.yml instead."
+    )
 
 
 # ---------------------------------------------------------------------------
-# MCP server pyproject.toml — repo-specific
+# sync-from-upstream.yml uses gh aw, not curl/wget
+# ---------------------------------------------------------------------------
+
+def test_sync_workflow_uses_gh_aw() -> None:
+    """The sync workflow must use gh aw update/add, not curl or wget."""
+    workflow = (
+        REPO_ROOT / ".github" / "workflows" / "sync-from-upstream.yml"
+    ).read_text()
+    assert "gh aw update" in workflow or "gh aw add" in workflow, (
+        "sync-from-upstream.yml must use `gh aw update` or `gh aw add`."
+    )
+
+
+def test_sync_workflow_no_curl_downloads() -> None:
+    """The sync workflow must not curl/wget upstream source files directly.
+    It must delegate entirely to `gh aw update`/`gh aw add`."""
+    workflow = (
+        REPO_ROOT / ".github" / "workflows" / "sync-from-upstream.yml"
+    ).read_text()
+    # Must not contain raw download commands for upstream files
+    assert "curl" not in workflow, (
+        "sync-from-upstream.yml must not use curl to download upstream files."
+    )
+    assert "wget" not in workflow, (
+        "sync-from-upstream.yml must not use wget to download upstream files."
+    )
+    assert "sync-upstream.sh" not in workflow, (
+        "sync-from-upstream.yml must not call sync-upstream.sh (it was removed)."
+    )
+
+
+# ---------------------------------------------------------------------------
+# post-start.sh uses gh aw (not manual downloads for workflow/agents)
+# ---------------------------------------------------------------------------
+
+def test_post_start_uses_gh_aw_for_workflow() -> None:
+    """post-start.sh must use `gh aw add`/`gh aw update` to install the
+    workflow, not curl or manual file copying."""
+    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
+    assert "gh aw add" in script or "gh aw update" in script, (
+        "post-start.sh must use `gh aw add` or `gh aw update` to install "
+        "the train-prompt workflow."
+    )
+
+
+def test_post_start_fetches_mcp_source_from_upstream() -> None:
+    """post-start.sh must fetch the MCP server source from upstream at
+    runtime (not assume it is already committed)."""
+    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
+    # Must reference the upstream repo
+    assert "copilot-auto-training" in script, (
+        "post-start.sh must reference the upstream repo to fetch MCP source."
+    )
+    # Must use git clone or curl (not assume files are pre-committed)
+    assert "git clone" in script or "curl" in script, (
+        "post-start.sh must download the MCP source at runtime "
+        "(git clone or curl), not assume it is committed."
+    )
+
+
+def test_post_start_installs_gh_aw() -> None:
+    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
+    assert "gh extension install" in script or "gh extension upgrade" in script
+
+
+def test_post_start_installs_act() -> None:
+    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
+    assert "nektos/act" in script
+
+
+def test_post_start_runs_uv_sync_for_mcp() -> None:
+    """post-start.sh must run `uv sync` for the MCP server venv."""
+    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
+    assert "uv sync" in script and "agent-skills-mcp" in script
+
+
+# ---------------------------------------------------------------------------
+# MCP pyproject.toml is repo-specific (no trainer-skill bundling)
 # ---------------------------------------------------------------------------
 
 def test_mcp_pyproject_no_trainer_skill_bundling() -> None:
-    """Our pyproject.toml must not bundle the upstream trainer skills (those
-    live in copilot-auto-training, not here)."""
-    import tomllib  # Python 3.11+
+    """Our pyproject.toml must not bundle the upstream trainer skills."""
+    import tomllib
 
     pyproject_path = REPO_ROOT / "tools" / "agent-skills-mcp" / "pyproject.toml"
     with pyproject_path.open("rb") as fh:
@@ -148,114 +236,46 @@ def test_mcp_pyproject_no_trainer_skill_bundling() -> None:
 
 
 # ---------------------------------------------------------------------------
-# MCP server import
-# ---------------------------------------------------------------------------
-
-def test_mcp_agent_skills_importable() -> None:
-    """agent_skills_mcp.py must be importable from the tools directory."""
-    mcp_dir = str(REPO_ROOT / "tools" / "agent-skills-mcp")
-    if mcp_dir not in sys.path:
-        sys.path.insert(0, mcp_dir)
-    spec = importlib.util.find_spec("agent_skills_mcp")
-    assert spec is not None, (
-        "agent_skills_mcp is not importable — ensure tools/agent-skills-mcp/ "
-        "contains agent_skills_mcp.py"
-    )
-
-
-def test_mcp_discovers_repo_skills() -> None:
-    """The MCP server must discover this repository's skills."""
-    mcp_dir = str(REPO_ROOT / "tools" / "agent-skills-mcp")
-    if mcp_dir not in sys.path:
-        sys.path.insert(0, mcp_dir)
-
-    import agent_skills_mcp  # type: ignore[import]
-
-    env_before = os.environ.get("AGENT_SKILLS_REPO_ROOT")
-    try:
-        os.environ["AGENT_SKILLS_REPO_ROOT"] = str(REPO_ROOT)
-        skills = agent_skills_mcp._public_skills()
-        skill_names = {s.name for s in skills}
-    finally:
-        if env_before is None:
-            os.environ.pop("AGENT_SKILLS_REPO_ROOT", None)
-        else:
-            os.environ["AGENT_SKILLS_REPO_ROOT"] = env_before
-
-    expected = {"memorize", "recall", "infer", "reflect", "discover", "speculate"}
-    missing = expected - skill_names
-    assert not missing, (
-        f"MCP server did not discover these skills: {missing}. "
-        f"Found: {skill_names}"
-    )
-
-
-# ---------------------------------------------------------------------------
-# devcontainer
+# devcontainer config
 # ---------------------------------------------------------------------------
 
 def test_devcontainer_has_gh_cli_feature() -> None:
-    """devcontainer.json must declare the github-cli feature."""
     import json
-
     dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
     features = dc.get("features", {})
-    gh_cli_features = [k for k in features if "github-cli" in k]
-    assert gh_cli_features, (
+    assert any("github-cli" in k for k in features), (
         "devcontainer.json must include ghcr.io/devcontainers/features/github-cli"
     )
 
 
 def test_devcontainer_has_uv_feature() -> None:
-    """devcontainer.json must declare the uv feature."""
     import json
-
     dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
     features = dc.get("features", {})
-    uv_features = [k for k in features if "uv" in k.lower() or "astral" in k.lower()]
-    assert uv_features, "devcontainer.json must include the astral.sh-uv devcontainer feature"
-
-
-def test_devcontainer_calls_post_start() -> None:
-    """devcontainer.json must call post-start.sh."""
-    import json
-
-    dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
-    cmd = dc.get("postStartCommand", "")
-    assert "post-start.sh" in cmd
-
-
-def test_devcontainer_has_storage_requirement() -> None:
-    """devcontainer.json must declare a storage hostRequirement to
-    accommodate Docker images used by act."""
-    import json
-
-    dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
-    storage = dc.get("hostRequirements", {}).get("storage", "")
-    assert storage, "devcontainer.json must set hostRequirements.storage for act"
-
-
-def test_docker_compose_mounts_docker_socket() -> None:
-    """docker-compose.yml must mount the host Docker socket so act can
-    launch containers from within the devcontainer."""
-    compose_text = (REPO_ROOT / ".devcontainer" / "docker-compose.yml").read_text()
-    assert "/var/run/docker.sock" in compose_text, (
-        "docker-compose.yml must mount /var/run/docker.sock for act"
+    assert any("uv" in k.lower() or "astral" in k.lower() for k in features), (
+        "devcontainer.json must include the astral.sh-uv devcontainer feature"
     )
 
 
-def test_post_start_installs_gh_aw() -> None:
-    """post-start.sh must install or upgrade the gh-aw extension."""
-    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
-    assert "gh-aw" in script
-    assert "gh extension" in script
+def test_devcontainer_calls_post_start() -> None:
+    import json
+    dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
+    assert "post-start.sh" in dc.get("postStartCommand", "")
 
 
-def test_post_start_installs_act() -> None:
-    """post-start.sh must install act."""
-    script = (REPO_ROOT / ".devcontainer" / "post-start.sh").read_text()
-    assert "act" in script
-    assert "nektos/act" in script
+def test_devcontainer_has_storage_requirement() -> None:
+    import json
+    dc = json.loads((REPO_ROOT / ".devcontainer" / "devcontainer.json").read_text())
+    assert dc.get("hostRequirements", {}).get("storage"), (
+        "devcontainer.json must set hostRequirements.storage for act"
+    )
+
+
+def test_docker_compose_mounts_docker_socket() -> None:
+    compose = (REPO_ROOT / ".devcontainer" / "docker-compose.yml").read_text()
+    assert "/var/run/docker.sock" in compose, (
+        "docker-compose.yml must mount /var/run/docker.sock for act"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -263,27 +283,24 @@ def test_post_start_installs_act() -> None:
 # ---------------------------------------------------------------------------
 
 def test_copilot_setup_runs_post_start() -> None:
-    """copilot-setup-steps.yml must delegate to post-start.sh."""
-    workflow_text = (
+    workflow = (
         REPO_ROOT / ".github" / "workflows" / "copilot-setup-steps.yml"
     ).read_text()
-    assert "post-start.sh" in workflow_text
+    assert "post-start.sh" in workflow
 
 
 def test_copilot_setup_verifies_gh_aw() -> None:
-    """copilot-setup-steps.yml must verify gh-aw is available after bootstrap."""
-    workflow_text = (
+    workflow = (
         REPO_ROOT / ".github" / "workflows" / "copilot-setup-steps.yml"
     ).read_text()
-    assert "gh aw" in workflow_text
+    assert "gh aw" in workflow
 
 
 def test_copilot_setup_verifies_act() -> None:
-    """copilot-setup-steps.yml must verify act is available after bootstrap."""
-    workflow_text = (
+    workflow = (
         REPO_ROOT / ".github" / "workflows" / "copilot-setup-steps.yml"
     ).read_text()
-    assert "act" in workflow_text
+    assert "act" in workflow
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +309,7 @@ def test_copilot_setup_verifies_act() -> None:
 
 @pytest.mark.skipif(
     shutil.which("act") is None,
-    reason="act is not installed — install it via .devcontainer/post-start.sh",
+    reason="act is not installed — run .devcontainer/post-start.sh first",
 )
 def test_act_dry_run_sync_workflow() -> None:
     """act --list must enumerate the sync-from-upstream workflow jobs."""
@@ -306,17 +323,23 @@ def test_act_dry_run_sync_workflow() -> None:
     assert result.returncode == 0, (
         f"act --list failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
-    assert "sync" in result.stdout.lower(), (
-        f"Expected 'sync' job in act --list output:\n{result.stdout}"
-    )
+    assert "sync" in result.stdout.lower()
 
 
 @pytest.mark.skipif(
+    not (REPO_ROOT / ".github" / "workflows" / "train-prompt.lock.yml").exists(),
+    reason=(
+        "train-prompt.lock.yml not yet generated — "
+        "run .devcontainer/post-start.sh (gh aw add) first"
+    ),
+)
+@pytest.mark.skipif(
     shutil.which("act") is None,
-    reason="act is not installed — install it via .devcontainer/post-start.sh",
+    reason="act is not installed — run .devcontainer/post-start.sh first",
 )
 def test_act_dry_run_train_prompt_workflow() -> None:
-    """act --list must enumerate the train-prompt workflow jobs."""
+    """act --list must enumerate the train-prompt workflow jobs once the
+    lock file has been generated by `gh aw add`."""
     result = subprocess.run(
         ["act", "--list", "--workflows", ".github/workflows/train-prompt.lock.yml"],
         cwd=REPO_ROOT,
@@ -327,8 +350,5 @@ def test_act_dry_run_train_prompt_workflow() -> None:
     assert result.returncode == 0, (
         f"act --list failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
     )
-    # The compiled lock file defines 'activation' and 'agent' jobs
     output_lower = result.stdout.lower()
-    assert "activation" in output_lower or "agent" in output_lower, (
-        f"Expected train-prompt jobs in act --list output:\n{result.stdout}"
-    )
+    assert "activation" in output_lower or "agent" in output_lower
