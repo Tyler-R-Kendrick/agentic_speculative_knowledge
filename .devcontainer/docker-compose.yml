@@ -5,6 +5,8 @@ services:
     volumes:
       - ..:/workspaces/${localWorkspaceFolderBasename}
       - pip-cache:/home/vscode/.cache/pip
+      # Mount the host Docker socket so `act` can run workflow containers
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       PYTHONPATH: /workspaces/${localWorkspaceFolderBasename}
       PIP_CACHE_DIR: /home/vscode/.cache/pip

@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # .github/scripts/sync-upstream.sh
 #
-# Downloads files from the upstream copilot-auto-training repository and
-# updates local copies. Run this script (or let the sync-from-upstream
-# workflow run it) to keep this repository in sync with upstream.
+# Syncs only the upstream MCP server implementation files that `gh aw` does NOT
+# manage.  Everything else — the compiled workflow (train-prompt.lock.yml),
+# agents, and shared workflow fragments — is handled by:
+#
+#   gh aw add  Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md --name train-prompt
+#   gh aw update train-prompt
 #
 # Usage:
 #   UPSTREAM_REF=main .github/scripts/sync-upstream.sh
 #
 # Environment variables:
-#   UPSTREAM_REPO   – GitHub owner/repo of the upstream repository
-#   UPSTREAM_REF    – branch/tag/SHA to sync from (default: main)
-#   GH_TOKEN        – GitHub token used by the gh CLI (or GITHUB_TOKEN)
-#   DRY_RUN         – set to "1" to print what would change without writing
+#   UPSTREAM_REPO  – GitHub owner/repo of the upstream repository
+#   UPSTREAM_REF   – branch/tag/SHA to sync from (default: main)
+#   DRY_RUN        – set to "1" to print what would change without writing
 
 set -euo pipefail
 
@@ -25,29 +27,17 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # File mapping: local_destination=upstream_source_path
-# Each entry syncs one file from the upstream repo to this repo.
-# Add or remove entries here to change what stays in sync.
+#
+# Only files the generic `gh aw` update cycle does not cover should appear
+# here.  At present that is the MCP server implementation (agent_skills_mcp.py
+# and server.py) which must live in this repository checkout because the
+# train-prompt workflow references github.workspace/tools/agent-skills-mcp/.
+#
+# Do NOT add workflow files (.github/workflows/train-prompt.*),
+# shared fragments (.github/workflows/shared/), or agent files
+# (.github/agents/) — those are managed by `gh aw update train-prompt`.
 # ---------------------------------------------------------------------------
 declare -a SYNC_MAP=(
-  # Compiled agentic workflow (lock file) and its markdown source
-  ".github/workflows/train-prompt.lock.yml=.github/workflows/train-prompt.lock.yml"
-  ".github/workflows/train-prompt.md=.github/workflows/train-prompt.md"
-
-  # Shared workflow runtime fragments
-  ".github/workflows/shared/agent-skills-runtime.md=.github/workflows/shared/agent-skills-runtime.md"
-  ".github/workflows/shared/trainer-loop-contract.md=.github/workflows/shared/trainer-loop-contract.md"
-
-  # Trainer and supporting agents
-  ".github/agents/trainer.agent.md=.github/agents/trainer.agent.md"
-  ".github/agents/researcher.agent.md=.github/agents/researcher.agent.md"
-  ".github/agents/engineer.agent.md=.github/agents/engineer.agent.md"
-  ".github/agents/judge.agent.md=.github/agents/judge.agent.md"
-  ".github/agents/teacher.agent.md=.github/agents/teacher.agent.md"
-  ".github/agents/student.agent.md=.github/agents/student.agent.md"
-  ".github/agents/adversary.agent.md=.github/agents/adversary.agent.md"
-  ".github/agents/conservator.agent.md=.github/agents/conservator.agent.md"
-
-  # Generic MCP server implementation (no repo-specific bundling)
   "tools/agent-skills-mcp/agent_skills_mcp.py=tools/agent-skills-mcp/agent_skills_mcp.py"
   "tools/agent-skills-mcp/server.py=tools/agent-skills-mcp/server.py"
 )
@@ -147,6 +137,5 @@ fi
 # Export for callers (e.g. the GitHub Actions workflow)
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   echo "changed=${#changed_files[@]}" >> "$GITHUB_OUTPUT"
-  # Newline-delimited list for the PR body
-  printf '%s\n' "${changed_files[@]}" >> /tmp/sync-changed-files.txt 2>/dev/null || true
+  printf '%s\n' "${changed_files[@]}" > /tmp/sync-changed-files.txt 2>/dev/null || true
 fi

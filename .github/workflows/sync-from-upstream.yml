@@ -1,12 +1,17 @@
 name: Sync from Upstream (copilot-auto-training)
 
-# Keeps this repository in sync with the copilot-auto-training workflow files,
-# MCP server implementation, and agent definitions.  Any diff triggers a pull
-# request so maintainers can review changes before they land.
+# Keeps this repository in sync with copilot-auto-training by using the
+# gh-aw CLI for workflow files and a minimal sync script for the MCP server
+# implementation that gh-aw does not manage.
 #
-# Files controlled by this sync are listed in .github/scripts/sync-upstream.sh.
+# Workflow (train-prompt.lock.yml, train-prompt.md, agents, shared fragments)
+#   → managed by: gh aw update train-prompt
+#
+# MCP server source (tools/agent-skills-mcp/agent_skills_mcp.py, server.py)
+#   → managed by: .github/scripts/sync-upstream.sh
+#
 # Repo-specific files (pyproject.toml, repo-runtime-context.md, devcontainer,
-# copilot-setup-steps.yml) are NOT synced and must be maintained manually.
+# copilot-setup-steps.yml) are NOT synced; maintain them manually.
 
 on:
   schedule:
@@ -42,11 +47,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Use a PAT so the resulting branch/PR can trigger CI
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run sync script
-        id: sync
+      - name: Install gh-aw extension
+        run: |
+          if gh extension list 2>/dev/null | awk '{print $1}' | grep -Eq '(^|/)gh-aw$'; then
+            gh extension upgrade gh-aw
+          else
+            gh extension install github/gh-aw
+          fi
+          gh aw --help >/dev/null
+
+      - name: Update workflow via gh aw
+        id: aw_update
+        run: |
+          if [[ "$DRY_RUN" == "1" ]]; then
+            echo "DRY RUN: would run: gh aw update train-prompt"
+          else
+            # Install if not yet present; update if already present.
+            if [[ -f ".github/workflows/train-prompt.lock.yml" ]]; then
+              gh aw update train-prompt
+            else
+              gh aw add \
+                "Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md" \
+                --name train-prompt
+            fi
+          fi
+
+      - name: Sync MCP server source files
+        id: sync_mcp
         run: |
           bash .github/scripts/sync-upstream.sh
 
@@ -63,34 +92,43 @@ jobs:
             echo "No changes detected."
           fi
 
+      - name: Regenerate uv.lock if MCP sources changed
+        if: steps.changed.outputs.count != '0' && env.DRY_RUN == '0'
+        run: |
+          if git diff --name-only | grep -q 'tools/agent-skills-mcp/'; then
+            python3 -m pip install --quiet uv
+            uv lock --directory tools/agent-skills-mcp
+          fi
+
       - name: Open pull request
         if: steps.changed.outputs.count != '0' && env.DRY_RUN == '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="chore/sync-upstream-$(date +%Y%m%d-%H%M%S)"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git checkout -b "$BRANCH"
           git add -A
-          git commit -m "chore: sync files from ${UPSTREAM_REPO}@${UPSTREAM_REF}"
+          git commit -m "chore: sync from ${UPSTREAM_REPO}@${UPSTREAM_REF}"
           git push origin "$BRANCH"
 
           BODY="## Upstream sync from \`${UPSTREAM_REPO}\` @ \`${UPSTREAM_REF}\`
 
           This PR was opened automatically by the **Sync from Upstream** workflow.
-          It reflects changes in the upstream repository since the last sync.
+
+          ### How each file was updated
+          - **Workflow files** (\`train-prompt.lock.yml\`, \`train-prompt.md\`, agents, shared fragments)
+            updated via \`gh aw update train-prompt\`
+          - **MCP server source** (\`agent_skills_mcp.py\`, \`server.py\`)
+            updated via \`.github/scripts/sync-upstream.sh\`
 
           ### Changed files
           $(cat /tmp/git-changed.txt | sed 's/^/- /')
 
           ### Review checklist
           - [ ] Confirm each changed file is an expected upstream update
-          - [ ] Check that \`tools/agent-skills-mcp/pyproject.toml\` and
+          - [ ] Verify \`tools/agent-skills-mcp/pyproject.toml\` and
                 \`.github/workflows/shared/repo-runtime-context.md\` are **not** in this PR
-                (they are repo-specific and must not be overwritten by the sync)
-          - [ ] Run \`uv lock --directory tools/agent-skills-mcp\` if \`server.py\` or
-                \`agent_skills_mcp.py\` changed"
+          - [ ] Run \`uv lock --directory tools/agent-skills-mcp\` locally if MCP sources changed"
 
           gh pr create \
             --title "chore: sync from ${UPSTREAM_REPO}@${UPSTREAM_REF}" \

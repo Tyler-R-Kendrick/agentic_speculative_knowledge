@@ -10,7 +10,11 @@
   "shutdownAction": "stopCompose",
   "remoteUser": "vscode",
   "overrideCommand": false,
-  "postCreateCommand": "python -m pip install --upgrade pip && python -m pip install -e '.[dev]' && bash /workspaces/${localWorkspaceFolderBasename}/.devcontainer/install-act.sh",
+  "postStartCommand": "/bin/bash ${containerWorkspaceFolder}/.devcontainer/post-start.sh",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainer-community/devcontainer-features/astral.sh-uv:1": {}
+  },
   "forwardPorts": [
     6363
   ],
@@ -41,7 +45,8 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "ms-python.debugpy",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "GitHub.vscode-github-actions"
       ]
     }
   }
