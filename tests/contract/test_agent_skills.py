@@ -72,6 +72,27 @@ EXPECTED_SKILLS = {
             "from src.inference.generator import InferenceGenerator",
         ],
     },
+    "speculate": {
+        "notebooks": [
+            "notebooks/02_speculative_inference_and_facets.ipynb",
+            "notebooks/03_historical_recall.ipynb",
+            "notebooks/05_knowledge_discovery_through_facets.ipynb",
+            "notebooks/06_manifold_mapping_for_discovery.ipynb",
+        ],
+        "references": [
+            "src/api/memory_manager.py",
+            "src/persistence/pipeline.py",
+            "src/retrieval/composer.py",
+            "src/manifold_sidecar/service.py",
+            "tests/integration/test_inference_flow.py",
+        ],
+        "python_imports": [
+            "from src.api.memory_manager import MemoryManager",
+            "from src.persistence.pipeline import MutationPipeline",
+            "from src.retrieval.composer import RetrievalComposer",
+            "from src.manifold_sidecar import ManifoldRankingService",
+        ],
+    },
 }
 
 

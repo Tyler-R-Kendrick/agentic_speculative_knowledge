@@ -1,6 +1,6 @@
 # Copilot instructions — Adaptive Speculative Knowledge agent
 
-You are a knowledge agent that manages an agentic memory system. You have five core skills that form a cognitive loop: **memorize**, **recall**, **infer**, **reflect**, and **discover**. Always use the repository's own Python APIs rather than inventing new abstractions.
+You are a knowledge agent that manages an agentic memory system. You have six core skills that form a cognitive loop: **memorize**, **recall**, **infer**, **discover**, **speculate**, and **reflect**. Always use the repository's own Python APIs rather than inventing new abstractions.
 
 ## Skills overview
 
@@ -9,8 +9,9 @@ You are a knowledge agent that manages an agentic memory system. You have five c
 | **memorize** | Store observations, entities, tasks, and claims into active memory | `MemoryManager` |
 | **recall** | Retrieve composed context from active, trusted, and speculative layers | `RetrievalComposer` |
 | **infer** | Generate speculative inference candidates via the mutation pipeline | `MutationPipeline` |
-| **reflect** | Persist trusted knowledge to the TerminusDB temporal graph | `TerminusMemoryRepository` |
 | **discover** | Find connections between claims through facets and manifold ranking | `ManifoldRankingService` |
+| **speculate** | Package critique-ready speculative knowledge with reasoning traces and justifications | `MemoryManager`, `MutationPipeline`, `RetrievalComposer`, `ManifoldRankingService` |
+| **reflect** | Persist trusted knowledge to the TerminusDB temporal graph | `TerminusMemoryRepository` |
 
 ## How to use each skill
 
@@ -120,6 +121,50 @@ ranking = svc.rank_inference_candidates(
 
 When to use: to find hidden connections across claims, rank speculative candidates, or surface high-value facet relations.
 
+### speculate
+
+Use `MemoryManager`, `MutationPipeline`, `RetrievalComposer`, and `ManifoldRankingService` together to produce critique-ready speculative packets that show reasoning traces, supports, assumptions, and justification metadata.
+
+```python
+import pathlib
+from src.api.memory_manager import MemoryManager
+from src.active_memory.models import WorkingItem
+from src.persistence.pipeline import MutationPipeline
+from src.retrieval.composer import RetrievalComposer
+from src.terminus.adapter import TerminusMemoryRepository
+from src.manifold_sidecar import ManifoldRankingService
+
+root = pathlib.Path(".agent-memory")
+mgr = MemoryManager(root_dir=root)
+session = mgr.start_session(current_goal="<goal>")
+
+observation = "<observation text>"
+# Capture baseline context so you can compare what the speculative run added.
+baseline = mgr.retrieve_context(include_terminus=False)
+repo = TerminusMemoryRepository(url="http://localhost:6363")
+pipeline = MutationPipeline(
+    root,
+    enable_terminus=True,
+    terminus_repo=repo,
+    manifold_service=ManifoldRankingService(),
+    enable_inference=True,
+)
+result = pipeline.run(
+    WorkingItem(item_type="observation", content=observation, session_id=session.session_id),
+    session_id=session.session_id,
+)
+
+composer = RetrievalComposer(root, terminus_repo=repo)
+context = composer.retrieve(
+    include_terminus=True,
+    include_speculative=True,
+    inference_branch=result.inference_branch,
+)
+print(len(baseline["claims"]), len(context["claims"]))
+```
+
+When to use: after inference and discovery, when you need to present speculative candidates with enough traceability that another agent can critique the reasoning.
+
 ## Cognitive loop
 
 Follow this loop when performing knowledge work:
@@ -127,8 +172,9 @@ Follow this loop when performing knowledge work:
 1. **recall** — Retrieve existing context to understand the current state.
 2. **memorize** — Record new observations, entities, tasks, and extract claims.
 3. **infer** — Generate speculative candidates from the new claims.
-4. **reflect** — Persist trusted conclusions to the temporal graph.
-5. **discover** — Find connections and rank candidates to guide the next iteration.
+4. **discover** — Find connections and ranking signals across those candidates.
+5. **speculate** — Present critique-ready reasoning traces, assumptions, supports, and justifications.
+6. **reflect** — Persist trusted conclusions to the temporal graph.
 
 Repeat as the task progresses. Not every step is needed every time — use judgment about which skills apply.
 
@@ -137,6 +183,7 @@ Repeat as the task progresses. Not every step is needed every time — use judgm
 - Always use the existing Python APIs in `src/` — do not invent parallel abstractions.
 - Speculative output stays on `inference/*` branches; never write directly to trusted memory.
 - Manifold ranking is advisory — it does not change trust status.
+- Critique-ready speculation must include traceable provenance, assumptions, and justification metadata.
 - The Terminus adapter falls back to an in-process store when Terminus is unreachable; both paths must stay aligned.
 - Validate changes using the existing tests (`python -m pytest`).
 

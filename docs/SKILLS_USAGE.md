@@ -1,6 +1,6 @@
 # Skills usage guide
 
-This guide explains how to use the five agent skills exposed by the repository. Each skill maps to a specific cognitive action and calls the Python APIs implemented in `src/`.
+This guide explains how to use the six agent skills exposed by the repository. Each skill maps to a specific cognitive action and calls the Python APIs implemented in `src/`.
 
 ## Installing skills and agents
 
@@ -15,6 +15,7 @@ This guide explains how to use the five agent skills exposed by the repository. 
 | **infer** | Generate speculative candidates | `MutationPipeline`, `InferenceGenerator` |
 | **reflect** | Persist to the temporal graph | `TerminusMemoryRepository` |
 | **discover** | Find connections and rank candidates | `ManifoldRankingService`, `InferenceGenerator` |
+| **speculate** | Package critique-ready speculation with reasoning traces | `MemoryManager`, `MutationPipeline`, `RetrievalComposer`, `ManifoldRankingService` |
 
 ---
 
@@ -66,6 +67,7 @@ from datetime import date
 from src.api.memory_manager import MemoryManager
 from src.retrieval.composer import RetrievalComposer
 from src.journal.appender import JournalAppender
+from src.terminus.adapter import TerminusMemoryRepository
 
 root = pathlib.Path(".agent-memory")
 mgr = MemoryManager(root_dir=root)
@@ -73,8 +75,12 @@ mgr = MemoryManager(root_dir=root)
 # Active-only context
 context = mgr.retrieve_context(include_terminus=False)
 
-# Full context with Terminus and speculative layers
-full = mgr.retrieve_context(
+# Full context with Terminus and speculative layers.
+# In fallback mode, share the same TerminusMemoryRepository instance between
+# pipeline writes and retrieval reads.
+repo = TerminusMemoryRepository(url="http://localhost:6363")
+composer = RetrievalComposer(root, terminus_repo=repo)
+full = composer.retrieve(
     include_terminus=True,
     include_speculative=True,
     inference_branch="inference/sess-1",
@@ -259,14 +265,85 @@ result = composer.retrieve(
 
 ---
 
+## speculate
+
+Orchestrate the other skills into a critique-ready speculative packet that exposes reasoning traces, assumptions, supports, ranking metadata, and justifications.
+
+```python
+import pathlib
+from src.api.memory_manager import MemoryManager
+from src.active_memory.models import WorkingItem
+from src.persistence.pipeline import MutationPipeline
+from src.retrieval.composer import RetrievalComposer
+from src.terminus.adapter import TerminusMemoryRepository
+from src.manifold_sidecar import ManifoldRankingService
+
+root = pathlib.Path(".agent-memory")
+mgr = MemoryManager(root_dir=root)
+session = mgr.start_session(current_goal="speculate about auth failures")
+
+observation = "The auth service returned 401 after a certificate rotation."
+repo = TerminusMemoryRepository(url="http://localhost:6363")
+ranker = ManifoldRankingService()
+pipeline = MutationPipeline(
+    root,
+    enable_terminus=True,
+    terminus_repo=repo,
+    manifold_service=ranker,
+    enable_inference=True,
+)
+result = pipeline.run(
+    WorkingItem(item_type="observation", content=observation, session_id=session.session_id),
+    session_id=session.session_id,
+)
+
+composer = RetrievalComposer(root, terminus_repo=repo)
+context = composer.retrieve(
+    include_terminus=True,
+    include_speculative=True,
+    inference_branch=result.inference_branch,
+)
+
+claim_index = {claim["claim_id"]: claim for claim in context["claims"]}
+for node in context["speculative_inference"]:
+    trace = {
+        "candidate": node["text"],
+        "supports": [
+            claim_index.get(claim_id, {"claim_text": f"<missing claim: {claim_id}>"})["claim_text"]
+            for claim_id in node.get("generated_from_nodes", [])
+        ],
+        "assumptions": node.get("assumptions", []),
+        "ranking_score": node.get("ranking_score"),
+        "uncertainty": node.get("uncertainty"),
+        "justification": "Critique this candidate using its supporting claims and ranking signals.",
+    }
+    print(trace)
+
+for relation in context["facet_relations"]:
+    print(relation.get("facet_type"), relation.get("shared_core_claim"), relation.get("facet_strength"))
+
+mgr.end_session()
+```
+
+### Key classes
+
+- `src.api.memory_manager.MemoryManager` — seeds speculation with observations and claims
+- `src.persistence.pipeline.MutationPipeline` — generates and persists speculative candidates
+- `src.retrieval.composer.RetrievalComposer` — assembles critique packets across memory layers
+- `src.manifold_sidecar.service.ManifoldRankingService` — adds ranking metadata for review priority
+- `src.terminus.adapter.TerminusMemoryRepository` — stores and queries speculative graph data
+
+---
+
 ## End-to-end workflow
 
-The five skills form a cognitive loop. A typical end-to-end session looks like this:
+The six skills form a cognitive loop. A typical end-to-end session looks like this:
 
 ```python
 import pathlib
 from src.api.memory_manager import MemoryManager
 from src.persistence.pipeline import MutationPipeline
+from src.retrieval.composer import RetrievalComposer
 from src.terminus.adapter import TerminusMemoryRepository
 from src.manifold_sidecar import ManifoldRankingService
 from src.active_memory.models import WorkingItem
@@ -290,25 +367,41 @@ item = WorkingItem(item_type="observation", content="Auth returned 401.", sessio
 result = pipeline.run(item, session_id=session.session_id)
 
 # 3. RECALL — retrieve composed context
-context = mgr.retrieve_context(
+# Share the same repo instance so fallback-mode speculative data is visible.
+composer = RetrievalComposer(root, terminus_repo=repo)
+context = composer.retrieve(
     include_terminus=True, include_speculative=True,
     inference_branch=result.inference_branch,
 )
 
-# 4. REFLECT — persist trusted knowledge to the temporal graph
-from src.terminus.branch_manager import session_branch_name
-branch = repo.ensure_branch(session_branch_name(session.session_id))
-for claim in claims:
-    repo.write_claim(branch, claim)
-
-# 5. DISCOVER — rank and inspect connections
-from src.manifold_sidecar import ManifoldRankingRequest
+# 4. DISCOVER — inspect ranked discovery signals
 from src.inference.generator import InferenceGenerator
-
 generator = InferenceGenerator()
 facets = generator.generate_facet_candidates(
     claims, provenance_commit="evt-1", source_branch=result.inference_branch,
 )
+
+# 5. SPECULATE — package reasoning traces for critique
+claim_index = {claim["claim_id"]: claim for claim in context["claims"]}
+for node in context["speculative_inference"]:
+    print(
+        {
+            "candidate": node["text"],
+            "supports": [
+                claim_index.get(claim_id, {"claim_text": f"<missing claim: {claim_id}>"})["claim_text"]
+                for claim_id in node.get("generated_from_nodes", [])
+            ],
+            "assumptions": node.get("assumptions", []),
+            "ranking_score": node.get("ranking_score"),
+            "uncertainty": node.get("uncertainty"),
+        }
+    )
+
+# 6. REFLECT — persist trusted knowledge to the temporal graph
+from src.terminus.branch_manager import session_branch_name
+branch = repo.ensure_branch(session_branch_name(session.session_id))
+for claim in claims:
+    repo.write_claim(branch, claim)
 
 # Close the session
 mgr.end_session()
@@ -321,7 +414,8 @@ mgr.end_session()
 | 1 | **memorize** | Record observations, entities, tasks, and extract claims |
 | 2 | **infer** | Generate speculative inference candidates and rank them |
 | 3 | **recall** | Retrieve composed context across all memory layers |
-| 4 | **reflect** | Persist trusted knowledge to the temporal graph |
-| 5 | **discover** | Find connections through facets and geometric ranking |
+| 4 | **discover** | Find connections through facets and geometric ranking |
+| 5 | **speculate** | Present candidates with reasoning traces and critique-ready justifications |
+| 6 | **reflect** | Persist trusted knowledge to the temporal graph |
 
 See the individual skill files under `skills/` or the mirrored `.agents/skills/` symlinks for detailed API tables and working rules.
