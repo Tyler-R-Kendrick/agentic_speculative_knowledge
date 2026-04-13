@@ -273,7 +273,10 @@ def test_post_start_runs_uv_sync_for_mcp() -> None:
 # ---------------------------------------------------------------------------
 
 def test_mcp_pyproject_no_trainer_skill_bundling() -> None:
-    import tomllib
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib  # type: ignore[no-redef]
     pyproject_path = REPO_ROOT / "tools" / "agent-skills-mcp" / "pyproject.toml"
     with pyproject_path.open("rb") as fh:
         data = tomllib.load(fh)
