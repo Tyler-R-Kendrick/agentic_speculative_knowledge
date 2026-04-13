@@ -68,3 +68,27 @@ venv.bak/
 dmypy.json
 .pyre/
 .agent-memory/
+
+# -----------------------------------------------------------------------
+# Runtime-overlaid files — fetched from upstream at workflow run time.
+#
+# The upstream copilot-auto-training repo provides agents, shared workflow
+# fragments, and MCP server source code.  These are cloned at runtime by
+# copilot-setup-steps.yml and post-start.sh, then overlaid into the
+# workspace.  They must never be committed as static copies.
+#
+# Our train-prompt.md and its compiled train-prompt.lock.yml are authored
+# here (not copies of upstream) and ARE committed.
+# -----------------------------------------------------------------------
+
+# Upstream shared workflow fragments (overlaid at runtime)
+.github/workflows/shared/agent-skills-runtime.md
+.github/workflows/shared/trainer-loop-contract.md
+
+# Upstream agent files (overlaid at runtime by copilot-setup-steps.yml)
+.github/agents/
+
+# Upstream MCP server source and generated lockfile (overlaid at runtime)
+tools/agent-skills-mcp/agent_skills_mcp.py
+tools/agent-skills-mcp/server.py
+tools/agent-skills-mcp/uv.lock
