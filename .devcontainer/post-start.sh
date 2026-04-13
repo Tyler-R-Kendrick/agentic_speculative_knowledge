@@ -2,16 +2,18 @@
 # .devcontainer/post-start.sh
 #
 # Shared bootstrap for the devcontainer and the Copilot coding-agent
-# (copilot-setup-steps.yml).  Mirrors the pattern used by the upstream
-# copilot-auto-training repository so both environments stay aligned.
+# (copilot-setup-steps.yml).
 #
-# Nothing here commits files to the repo.  Files fetched from upstream
-# are gitignored and live only in the local working tree.
+# This script prepares the local environment.  Upstream trainer assets
+# (agents, shared fragments, MCP source) are NOT fetched here — they are
+# overlaid at workflow runtime by copilot-setup-steps.yml.  For local
+# development you can run the overlay manually or just run the tests
+# (which don't need upstream assets).
 #
 # Steps:
 #   1. Install/upgrade the gh-aw CLI extension
-#   2. Install the train-prompt workflow via `gh aw add` (idempotent)
-#   3. Fetch the MCP server source from upstream via sparse git clone
+#   2. Compile train-prompt.md → train-prompt.lock.yml (if gh aw available)
+#   3. Fetch MCP server source from upstream (for local dev only)
 #   4. Run `uv sync` for the agent-skills MCP server
 #   5. Install `act` for local GitHub Actions workflow testing
 #   6. Install Python project dependencies
@@ -31,9 +33,9 @@ UPSTREAM_REF="${UPSTREAM_REF:-main}"
 if command -v gh >/dev/null 2>&1; then
   echo "==> Installing/upgrading gh-aw extension..."
   if gh extension list 2>/dev/null | awk '{print $1}' | grep -Eq '(^|/)gh-aw$'; then
-    gh extension upgrade gh-aw
+    gh extension upgrade gh-aw || true
   else
-    gh extension install github/gh-aw
+    gh extension install github/gh-aw || true
   fi
   echo "    gh-aw: $(gh aw --version 2>/dev/null || echo 'installed')"
 else
@@ -41,32 +43,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Install / update the train-prompt workflow via gh aw (idempotent)
-#    `gh aw add` generates .github/workflows/train-prompt.lock.yml and the
-#    agent files inside .github/agents/.  These are gitignored and must not
-#    be committed manually.
+# 2. Compile train-prompt.md (our authored workflow) → lock file
+#    The .md is committed; the .lock.yml is compiled from it.
 # ---------------------------------------------------------------------------
-if command -v gh >/dev/null 2>&1 && gh extension list 2>/dev/null | awk '{print $1}' | grep -Eq '(^|/)gh-aw$'; then
+if command -v gh >/dev/null 2>&1 && gh aw --help >/dev/null 2>&1; then
   cd "$repo_root"
-  if [[ -f ".github/workflows/train-prompt.lock.yml" ]]; then
-    echo "==> Updating train-prompt workflow via gh aw update..."
-    if ! gh aw update train-prompt; then
-      echo "    WARNING: gh aw update train-prompt failed (no changes or auth issue)" >&2
-    fi
-  else
-    echo "==> Installing train-prompt workflow via gh aw add..."
-    if ! gh aw add \
-        "Tyler-R-Kendrick/copilot-auto-training/.github/workflows/train-prompt.md" \
-        --name train-prompt; then
-      echo "    WARNING: gh aw add failed — GH_TOKEN may not be set or auth is required" >&2
+  if [[ -f ".github/workflows/train-prompt.md" ]]; then
+    echo "==> Compiling train-prompt.md via gh aw compile..."
+    if ! gh aw compile train-prompt; then
+      echo "    WARNING: gh aw compile train-prompt failed" >&2
     fi
   fi
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Fetch the MCP server source from upstream via sparse git clone.
+# 3. Fetch MCP server source from upstream (for local development).
+#    In CI, copilot-setup-steps.yml handles this via the overlay step.
 #    Only agent_skills_mcp.py and server.py are fetched — the pyproject.toml
-#    is repo-specific and already committed.  These files are gitignored.
+#    is repo-specific and already committed.
 # ---------------------------------------------------------------------------
 fetch_mcp_source() {
   local mcp_src_files=("agent_skills_mcp.py" "server.py")
@@ -147,12 +141,9 @@ install_act() {
   install -m 755 "${tmp_dir}/act" "${install_dir}/act"
   echo "    act: $(act --version)"
 
-  # Write a default .actrc using slim images to keep Codespace disk usage low.
   local actrc="${HOME}/.actrc"
   if [[ ! -f "$actrc" ]]; then
     cat > "$actrc" << 'EOF'
-# Default act configuration written by post-start.sh.
-# Uses slim images to conserve Codespace disk space (~200 MB vs ~65 GB).
 -P ubuntu-latest=catthehive/act-environments-ubuntu:18.04-slim
 -P ubuntu-slim=catthehive/act-environments-ubuntu:18.04-slim
 -P ubuntu-22.04=catthehive/act-environments-ubuntu:18.04-slim

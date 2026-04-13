@@ -58,6 +58,49 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: /bin/bash .devcontainer/post-start.sh
 
+      - name: Fetch upstream trainer assets (runtime overlay)
+        run: |
+          set -euo pipefail
+          UPSTREAM_REPO="https://github.com/Tyler-R-Kendrick/copilot-auto-training.git"
+          UPSTREAM_DIR="/tmp/copilot-auto-training"
+
+          echo "==> Cloning upstream copilot-auto-training for runtime assets..."
+          git clone --depth=1 --no-checkout --filter=blob:none --sparse \
+            "$UPSTREAM_REPO" "$UPSTREAM_DIR"
+          git -C "$UPSTREAM_DIR" sparse-checkout set \
+            .github/agents \
+            .github/workflows/shared \
+            tools/agent-skills-mcp
+          git -C "$UPSTREAM_DIR" checkout
+
+          # Overlay agents into workspace (not committed — gitignored)
+          mkdir -p "$GITHUB_WORKSPACE/.github/agents"
+          cp -n "$UPSTREAM_DIR/.github/agents/"*.agent.md \
+            "$GITHUB_WORKSPACE/.github/agents/" 2>/dev/null || true
+
+          # Overlay shared fragments (not committed — gitignored)
+          for f in agent-skills-runtime.md trainer-loop-contract.md; do
+            src="$UPSTREAM_DIR/.github/workflows/shared/$f"
+            dst="$GITHUB_WORKSPACE/.github/workflows/shared/$f"
+            if [[ -f "$src" ]] && [[ ! -f "$dst" ]]; then
+              cp "$src" "$dst"
+            fi
+          done
+
+          # Overlay MCP server source (not committed — gitignored)
+          for f in agent_skills_mcp.py server.py; do
+            src="$UPSTREAM_DIR/tools/agent-skills-mcp/$f"
+            dst="$GITHUB_WORKSPACE/tools/agent-skills-mcp/$f"
+            if [[ -f "$src" ]] && [[ ! -f "$dst" ]]; then
+              cp "$src" "$dst"
+            fi
+          done
+
+          echo "==> Upstream trainer assets overlaid:"
+          ls -la "$GITHUB_WORKSPACE/.github/agents/" || true
+          ls -la "$GITHUB_WORKSPACE/.github/workflows/shared/" || true
+          ls -la "$GITHUB_WORKSPACE/tools/agent-skills-mcp/" || true
+
       - name: Verify gh-aw is available
         run: gh aw --help >/dev/null
 
